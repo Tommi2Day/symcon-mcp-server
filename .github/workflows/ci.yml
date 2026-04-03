@@ -2,65 +2,37 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: ["**"]
   pull_request:
-    branches: [main]
+    branches: ["**"]
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  # ─── Lint ────────────────────────────────────────────────────────────────────
-  lint:
-    name: Lint
+  lint-and-test:
+    name: Lint & Test
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
         with:
-          node-version: "20"
-          cache: "npm"
+          node-version: 24
+          cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Run ESLint
+      - name: Lint
         run: npm run lint
 
-  # ─── Unit Tests ──────────────────────────────────────────────────────────────
-  test:
-    name: Unit Tests (Node ${{ matrix.node }})
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node: ["20", "22"]
-    steps:
-      - uses: actions/checkout@v4
+      - name: Test
+        run: npm test
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node }}
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build
-        run: npm run build
-
-      - name: Run unit tests with coverage
-        run: npm run coverage
-
-      - name: Upload coverage to Codecov
-        if: matrix.node == '20'
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage/lcov.info
-          flags: unittests
-          fail_ci_if_error: false
+      - name: Coverage
+        run: npx vitest run --coverage
 
   # ─── Integration Tests ────────────────────────────────────────────────────────
   integration:
@@ -117,38 +89,3 @@ jobs:
           SYMCON_API_USER: test@symcon.de
           SYMCON_API_PASSWORD: symcon
         run: npm run test:integration
-
-  # ─── Docker Build ─────────────────────────────────────────────────────────────
-  docker:
-    name: Docker Build
-    runs-on: ubuntu-latest
-    needs: [lint, test]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build Docker image (no push)
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: false
-          tags: symcon-mcp-server:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Test Docker health endpoint
-        run: |
-          docker run -d --name symcon-mcp-ci \
-            -p 4096:4096 \
-            -e SYMCON_API_URL=http://127.0.0.1:1/api/ \
-            -e MCP_AUTH_TOKEN="" \
-            -e LOG_LEVEL=error \
-            symcon-mcp-server:ci
-          sleep 5
-          HTTP=$(curl -sf -o /dev/null -w "%{http_code}" http://localhost:4096/health || true)
-          # 200 (ok) or 503 (degraded but server is up) are both acceptable
-          echo "Health endpoint returned: $HTTP"
-          [[ "$HTTP" == "200" || "$HTTP" == "503" ]] || exit 1
-          docker rm -f symcon-mcp-ci

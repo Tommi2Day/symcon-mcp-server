@@ -1,114 +1,76 @@
 name: Release
 
 on:
-  # Option 1: Push a semver tag  (e.g. git tag 1.2.3 && git push origin 1.2.3)
   push:
     tags:
-      - "[0-9]+.[0-9]+.[0-9]+"
+      - '[0-9]+.[0-9]+.[0-9]+'
 
-  # Option 2: Manual dispatch – enter version number in GitHub UI
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
-      version:
-        description: "Version to release (e.g. 1.2.3)"
+      tag:
+        description: "Docker image tag (e.g. 1.2.3)"
         required: true
         type: string
 
-concurrency:
-  group: release
-  cancel-in-progress: false
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  # ─── Bump version (manual dispatch only) ─────────────────────────────────────
-  bump:
+  bump-version:
     name: Bump version
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch'
-    outputs:
-      version: ${{ steps.set.outputs.version }}
-      tag: ${{ steps.set.outputs.tag }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Bump version in package.json
-        id: set
-        run: |
-          VERSION="${{ github.event.inputs.version }}"
-          npm version "$VERSION" --no-git-tag-version
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "tag=$VERSION" >> "$GITHUB_OUTPUT"
-
-      - name: Commit and push version bump
-        run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add package.json
-          git commit -m "chore: release v${{ steps.set.outputs.version }}"
-          git push origin main
-
-      - name: Create and push tag
-        run: |
-          git tag "${{ steps.set.outputs.tag }}"
-          git push origin "${{ steps.set.outputs.tag }}"
-
-  # ─── Determine version from tag (tag push path) ───────────────────────────────
-  resolve-version:
-    name: Resolve version
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push'
-    outputs:
-      version: ${{ steps.v.outputs.version }}
-      tag: ${{ steps.v.outputs.tag }}
-    steps:
-      - id: v
-        run: |
-          TAG="${GITHUB_REF#refs/tags/}"
-          echo "version=$TAG" >> "$GITHUB_OUTPUT"
-          echo "tag=$TAG"     >> "$GITHUB_OUTPUT"
-
-  # ─── Release (runs after either path) ────────────────────────────────────────
-  release:
-    name: Build & Publish
-    runs-on: ubuntu-latest
-    needs: [bump, resolve-version]
-    if: always() && (needs.bump.result == 'success' || needs.resolve-version.result == 'success')
     permissions:
       contents: write
-      packages: write
 
     steps:
-      - name: Resolve version output
-        id: ver
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Update package.json, openapi.json and Chart.yaml
         run: |
-          VERSION="${{ needs.bump.outputs.version || needs.resolve-version.outputs.version }}"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "tag=$VERSION"     >> "$GITHUB_OUTPUT"
-          # Compute major.minor and major tags
-          MAJOR=$(echo "$VERSION" | cut -d. -f1)
-          MINOR=$(echo "$VERSION" | cut -d. -f2)
-          echo "major=$MAJOR"                >> "$GITHUB_OUTPUT"
-          echo "majorminor=$MAJOR.$MINOR"    >> "$GITHUB_OUTPUT"
-          echo "sha=sha-$(echo '${{ github.sha }}' | head -c 7)" >> "$GITHUB_OUTPUT"
+          npm version "${{ inputs.tag }}" --no-git-tag-version
+          node --input-type=commonjs -e "
+            const fs = require('fs'), v = '${{ inputs.tag }}';
+            const a = JSON.parse(fs.readFileSync('openapi.json'));
+            a.info.version = v;
+            fs.writeFileSync('openapi.json', JSON.stringify(a, null, 2) + '\n');
+            let c = fs.readFileSync('helm/pg-mcp-server/Chart.yaml', 'utf8');
+            c = c.replace(/^version: .+/m, 'version: ' + v)
+                 .replace(/^appVersion: .+/m, 'appVersion: \"' + v + '\"');
+            fs.writeFileSync('helm/pg-mcp-server/Chart.yaml', c);
+          "
 
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ steps.ver.outputs.tag }}
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json openapi.json helm/pg-mcp-server/Chart.yaml
+          git commit -m "chore: bump version to ${{ inputs.tag }}"
+          git push
 
-      - uses: actions/setup-node@v4
+  lint-and-test:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+    needs: [bump-version]
+    if: always() && !failure() && !cancelled()
+
+    steps:
+      - uses: actions/checkout@v6
         with:
-          node-version: "20"
-          cache: "npm"
+          ref: ${{ github.event_name == 'workflow_dispatch' && 'main' || github.ref }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
 
       - name: Install dependencies
         run: npm ci
@@ -116,86 +78,87 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Build
-        run: npm run build
+      - name: Run Coverage
+        run: npx vitest run --coverage
 
-      - name: Run unit tests
-        run: npm run coverage
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+      - name: Upload results to Codecov
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage/lcov.info
-          fail_ci_if_error: false
+          slug: Tommi2Day/pg-mcp-server
 
-      # ─── Docker ──────────────────────────────────────────────────────────────
+      - name: Test
+        run: npm test
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+  docker:
+    name: Build & Push
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && 'main' || github.ref }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Docker meta
+      - name: Extract metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
-          images: |
-            tommi2day/symcon-mcp-server
-            ghcr.io/tommi2day/symcon-mcp-server
+          images: tommi2day/pg-mcp-server
           tags: |
-            type=raw,value=${{ steps.ver.outputs.version }}
-            type=raw,value=${{ steps.ver.outputs.majorminor }}
-            type=raw,value=${{ steps.ver.outputs.major }}
+            # git tag or release → :1.2.3  :1.2  :1  :latest
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
             type=raw,value=latest
-            type=raw,value=${{ steps.ver.outputs.sha }}
+            # manual dispatch → entered tag
+            type=raw,value=${{ inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
+            # always: :sha-<short>
+            type=sha,format=short
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v6
+      - name: Build and push
+        uses: docker/build-push-action@v7
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          build-args: |
-            VERSION=${{ steps.ver.outputs.version }}
 
-      # ─── GitHub Release ───────────────────────────────────────────────────────
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: docker
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Create and push tag
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "${{ inputs.tag }}"
+          git push origin "${{ inputs.tag }}"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.ver.outputs.tag }}
-          generate_release_notes: true
-          name: "v${{ steps.ver.outputs.version }}"
-          body: |
-            ## Docker Images
-
-            ```
-            docker pull tommi2day/symcon-mcp-server:${{ steps.ver.outputs.version }}
-            docker pull ghcr.io/tommi2day/symcon-mcp-server:${{ steps.ver.outputs.version }}
-            ```
-
-            | Tag | Value |
-            |-----|-------|
-            | Version | `${{ steps.ver.outputs.version }}` |
-            | Major.Minor | `${{ steps.ver.outputs.majorminor }}` |
-            | Latest | `latest` |
-            | Commit | `${{ steps.ver.outputs.sha }}` |
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+        run: |
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --generate-notes
