@@ -1,0 +1,121 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Symcon MCP Server – docker-compose
+#
+# Copy .env.example to .env and fill in your values, then run:
+#   docker compose up -d
+# ─────────────────────────────────────────────────────────────────────────────
+name: symcon-mcp
+services:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # IP-Symcon server (optional – activate with: docker compose --profile symcon up)
+  #
+  # When using this service, set in your .env:
+  #   SYMCON_API_URL=http://symcon:3777/api/
+  # ─────────────────────────────────────────────────────────────────────────────
+  symcon:
+    image: symcon/symcon:latest
+    container_name: symcon-server
+    restart: unless-stopped
+    ports:
+      - "${SYMCON_HOST_PORT:-3777}:3777"
+
+    environment:
+      SYMCON_API_USER: ${SYMCON_API_USER:-test@symcon.de}
+      SYMCON_API_PASSWORD: ${SYMCON_API_PASSWORD:-symcon}
+
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        if [ ! -f /root/.symcon ] && [ -n "$$SYMCON_API_USER" ] && [ -n "$$SYMCON_API_PASSWORD" ]; then
+          SYMCON_API_PASSWORD_BASE64=$$(echo -n "$$SYMCON_API_PASSWORD" | base64)
+          echo "Licensee=$$SYMCON_API_USER" > /root/.symcon
+          echo "Password=$$SYMCON_API_PASSWORD_BASE64" >> /root/.symcon
+          chmod 600 /root/.symcon
+          echo "Generated /root/.symcon"
+        fi
+        exec /usr/bin/symcon
+
+    networks:
+      - symcon-network
+
+    #volumes:
+    #  - ./symcon:/root/.symcon:rw
+
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/3777 && echo -e 'GET /api/ HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && cat <&3 | grep -q 'HTTP/1.1 200'"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 30s
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  mcp:
+    build:
+      context: ..
+      dockerfile: ../Dockerfile
+      target: runtime
+    image: symcon-mcp-server:latest
+    container_name: symcon-mcp-server
+    restart: unless-stopped
+
+    ports:
+      - "${MCP_HOST_PORT:-4096}:${MCP_PORT:-4096}"
+
+    environment:
+      # ── MCP Server ───────────────────────────────────────────────────────
+      MCP_PORT:       ${MCP_PORT:-4096}
+      MCP_TRANSPORT:  ${MCP_TRANSPORT:-streamable}   # streamable | sse
+      MCP_AUTH_TOKEN: ${MCP_AUTH_TOKEN:-}            # leave empty to disable auth
+      LOG_LEVEL:      ${LOG_LEVEL:-info}             # debug | info | warn | error
+
+      # ── IP-Symcon Connection ─────────────────────────────────────────────
+      # Use http://symcon:3777/api/ when running the symcon profile above
+      SYMCON_API_URL:      ${SYMCON_API_URL:-http://host.docker.internal:3777/api/}
+      SYMCON_API_USER:     ${SYMCON_API_USER:-test@symcon.de}
+      SYMCON_API_PASSWORD: ${SYMCON_API_PASSWORD:-symcon}
+      SYMCON_TLS_VERIFY:   ${SYMCON_TLS_VERIFY:-true}  # set false for self-signed certs
+
+    # Allow access to the host machine's Symcon instance (not needed with symcon profile)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:${MCP_PORT:-4096}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    networks:
+      - symcon-network
+
+    # Optional: mount TLS certificates for HTTPS connections to Symcon
+    # volumes:
+    #   - ./certs:/app/certs:ro
+
+# ─── Optional: Traefik reverse proxy ─────────────────────────────────────────
+# Uncomment the labels block below if you use Traefik:
+#
+#    labels:
+#      - "traefik.enable=true"
+#      - "traefik.http.routers.symcon-mcp.rule=Host(`mcp.yourdomain.com`)"
+#      - "traefik.http.routers.symcon-mcp.entrypoints=websecure"
+#      - "traefik.http.routers.symcon-mcp.tls.certresolver=letsencrypt"
+#      - "traefik.http.services.symcon-mcp.loadbalancer.server.port=${MCP_PORT:-4096}"
+
+networks:
+  symcon-network:
+    driver: bridge
+
