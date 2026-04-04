@@ -1,3 +1,6 @@
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import express, { Request, Response, NextFunction } from "express";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
@@ -6,6 +9,12 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { SymconClient } from "./symcon.js";
 import { registerTools } from "./tools.js";
 import { logger } from "./logger.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const pkgPath = path.resolve(__dirname, "..", "package.json");
+const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
+const VERSION = pkg.version || "0.0.0";
 
 const PORT = parseInt(process.env.MCP_PORT || "4096", 10);
 const MCP_AUTH_TOKEN = process.env.MCP_AUTH_TOKEN || "";
@@ -48,14 +57,14 @@ app.get("/health", async (_req: Request, res: Response) => {
   const status = symconOk ? 200 : 503;
   res.status(status).json({
     status: symconOk ? "ok" : "degraded",
-    version: process.env.npm_package_version || "1.0.0",
+    version: VERSION,
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
     latencyMs: Date.now() - start,
     symcon: {
       url: process.env.SYMCON_API_URL,
-      reachable: symconOk,
-      ...(symconError ? { error: symconError } : {}),
+      status: symconOk ? "ok" : "error",
+      ...(symconError ? { error: `Symcon JSON API not working: ${symconError}` } : {}),
     },
   });
 });
@@ -64,7 +73,7 @@ app.get("/health", async (_req: Request, res: Response) => {
 function createMcpServer(): McpServer {
   const server = new McpServer({
     name: "symcon-mcp-server",
-    version: process.env.npm_package_version || "1.0.0",
+    version: VERSION,
   });
   registerTools(server, symcon);
   return server;
@@ -189,7 +198,7 @@ app.get("/info", async (_req: Request, res: Response) => {
   }
 
   res.json({
-    version: process.env.npm_package_version || "1.0.0",
+    version: VERSION,
     config: config,
     symcon: {
       version: symconVersion,
