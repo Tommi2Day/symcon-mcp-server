@@ -46,6 +46,7 @@ tests/
   symcon-client.test.ts  Unit tests for SymconClient
   tools.test.ts          Unit tests for all MCP tools (via InMemoryTransport)
   http-server.test.ts    HTTP layer tests: /health, auth, /mcp
+  info.test.ts           Unit tests for /info endpoint (unauthenticated)
   integration.test.ts    Integration tests against real Symcon container
 
 scripts/
@@ -204,6 +205,7 @@ Variable types: `0=Boolean`, `1=Integer`, `2=Float`, `3=String`
 Unit tests (fast, no external deps)
   ├── symcon-client.test.ts  → MockSymconServer (in-process HTTP)
   ├── tools.test.ts          → McpServer + InMemoryTransport + MockSymconServer
+  ├── info.test.ts           → GET /info (unauthenticated, masking, Symcon version)
   └── http-server.test.ts    → spawns real Express server process
 
 Integration tests (Docker required)

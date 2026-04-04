@@ -319,7 +319,7 @@ npm run test:all
 | Unit: SymconClient | `tests/symcon-client.test.ts` | MockSymconServer (in-process) |
 | Unit: MCP tools | `tests/tools.test.ts` | MockSymconServer + InMemoryTransport |
 | Unit: HTTP server | `tests/http-server.test.ts` | MockSymconServer + spawned Express |
-| Unit: Info endpoint | `tests/info.test.ts` | MockSymconServer + spawned Express (auth & config) |
+| Unit: Info endpoint | `tests/info.test.ts` | MockSymconServer + spawned Express (auth, masking & Symcon version) |
 | Integration | `tests/integration.test.ts` | Real `symcon/symcon-server` Docker container |
 
 ---

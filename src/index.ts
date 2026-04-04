@@ -211,9 +211,18 @@ app.get("/", (_req: Request, res: Response) => {
 });
 
 // ─── Start ────────────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   logger.info(`Symcon MCP Server listening at http://localhost:${PORT}`);
   logger.info(`Symcon API: ${process.env.SYMCON_API_URL}`);
   logger.info(`Auth: ${MCP_AUTH_TOKEN ? "enabled" : "disabled"}`);
   logger.info(`Transport: ${TRANSPORT}`);
+
+  // Test Symcon RPC connection
+  try {
+    const version = await symcon.ping();
+    logger.info(`Symcon API access successful (Version: ${version})`);
+  } catch (e: unknown) {
+    const errorMsg = e instanceof Error ? e.message : String(e);
+    logger.error(`Symcon API access failed: ${errorMsg}`);
+  }
 });
