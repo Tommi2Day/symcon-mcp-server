@@ -10,13 +10,10 @@
 
 import { execSync } from "child_process";
 
-const SYMCON_IMAGE = "symcon/symcon:latest";
-const CONTAINER_NAME = "symcon-mcp-test";
 const SYMCON_PORT = 3777;
 const READY_TIMEOUT_MS = 60_000;
 const POLL_INTERVAL_MS = 2_000;
-const SYMCON_API_USER = "test@symcon.de";
-const SYMCON_API_PASSWORD = "symcon";
+const COMPOSE_FILE = "docker/docker-compose.test.yml";
 
 let containerStarted = false;
 
@@ -39,41 +36,20 @@ export async function startSymconContainer(): Promise<SymconTestConfig> {
 
   // Remove any existing container
   try {
-    execSync(`docker rm -f ${CONTAINER_NAME}`, { stdio: "pipe" });
+    execSync(`docker compose -f ${COMPOSE_FILE} down`, { stdio: "pipe" });
   } catch {
     /* ignore if not exists */
   }
 
-  // Pull image (cached on subsequent runs)
-  console.log(`[test] Pulling ${SYMCON_IMAGE}...`);
-  try {
-    execSync(`docker pull ${SYMCON_IMAGE}`, { stdio: "pipe" });
-  } catch {
-    console.warn(`[test] Could not pull ${SYMCON_IMAGE}, trying with existing image`);
-  }
-
-  // Start container
-  console.log(`[test] Starting Symcon container on port ${SYMCON_PORT}...`);
+  // Start container using docker-compose
+  console.log(`[test] Starting Symcon container via docker-compose...`);
   const env = { ...process.env, MSYS_NO_PATHCONV: "1" };
-  execSync(
-    `docker run -d --name ${CONTAINER_NAME} \
-      -p ${SYMCON_PORT}:3777 \
-      -e SYMCON_API_USER=${SYMCON_API_USER} \
-      -e SYMCON_API_PASSWORD=${SYMCON_API_PASSWORD} \
-      --entrypoint /bin/sh \
-      ${SYMCON_IMAGE} \
-      -c 'if [ ! -f /root/.symcon ]; then \
-          SYMCON_API_PASSWORD_BASE64=$(echo -n "${SYMCON_API_PASSWORD}" | base64); \
-          echo "Licensee=${SYMCON_API_USER}" > /root/.symcon; \
-          echo "Password=$SYMCON_API_PASSWORD_BASE64" >> /root/.symcon; \
-          chmod 600 /root/.symcon; \
-          fi; exec /usr/bin/symcon'`,
-    { stdio: "pipe", env }
-  );
+  execSync(`docker compose -f ${COMPOSE_FILE} up -d`, { stdio: "pipe", env });
   containerStarted = true;
 
   // Wait for Symcon to be ready
   const apiUrl = `http://127.0.0.1:${SYMCON_PORT}/api/`;
+  console.log(`[test] Waiting for Symcon to be ready at ${apiUrl}...`);
   await waitForSymcon(apiUrl);
   console.log("[test] Symcon container is ready.");
 
@@ -86,7 +62,7 @@ export async function startSymconContainer(): Promise<SymconTestConfig> {
 export function stopSymconContainer(): void {
   if (!containerStarted) return;
   try {
-    execSync(`docker rm -f ${CONTAINER_NAME}`, { stdio: "pipe" });
+    execSync(`docker compose -f ${COMPOSE_FILE} down`, { stdio: "pipe" });
     console.log("[test] Symcon container stopped.");
   } catch {
     /* ignore */

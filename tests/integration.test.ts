@@ -6,10 +6,8 @@
  * These tests are skipped automatically when:
  *   - Docker is not available
  *   - SKIP_INTEGRATION=true is set
- *   - Running in CI without the symcon-test service
  *
- * In CI (GitHub Actions), the symcon-test service container is started via
- * the workflow, and SYMCON_TEST_URL is injected.
+ * This test uses docker-compose to start a local IP-Symcon instance.
  *
  * Run locally:
  *   npm run test:integration
@@ -20,7 +18,10 @@ import { SymconClient } from "../src/symcon.js";
 
 const SKIP =
   process.env.SKIP_INTEGRATION === "true" ||
-  (!process.env.SYMCON_TEST_URL && !process.env.CI);
+  (!process.env.SYMCON_TEST_URL && !process.env.CI && !process.env.DOCKER_AVAILABLE);
+
+// Set DOCKER_AVAILABLE if you have docker installed locally to run these tests automatically
+// or just run with CI=true npm run test:integration
 
 // In CI the service container URL is injected via env; locally we start our own
 // const TEST_URL = process.env.SYMCON_TEST_URL || "http://127.0.0.1:3777/api/";
