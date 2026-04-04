@@ -169,12 +169,42 @@ if (TRANSPORT === "stdio") {
 }
 
 // ─── Root info ───────────────────────────────────────────────────────────────
+app.get("/info", authMiddleware, async (_req: Request, res: Response) => {
+  const config = { ...process.env };
+  const sensitiveKeys = ["SYMCON_API_PASSWORD", "MCP_AUTH_TOKEN"];
+
+  for (const key of sensitiveKeys) {
+    if (config[key]) {
+      config[key] = "********";
+    }
+  }
+
+  let symconVersion: string | undefined;
+  let symconError: string | undefined;
+
+  try {
+    symconVersion = await symcon.ping();
+  } catch (e: unknown) {
+    symconError = e instanceof Error ? e.message : String(e);
+  }
+
+  res.json({
+    version: process.env.npm_package_version || "1.0.0",
+    config: config,
+    symcon: {
+      version: symconVersion,
+      ...(symconError ? { error: symconError } : {}),
+    },
+  });
+});
+
 app.get("/", (_req: Request, res: Response) => {
   res.json({
     name: "Symcon MCP Server",
     transport: TRANSPORT,
     endpoints: {
       health: "/health",
+      info: "/info",
       mcp: TRANSPORT === "sse" ? "/sse" : "/mcp",
     },
   });

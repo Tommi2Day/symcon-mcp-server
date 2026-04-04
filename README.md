@@ -277,7 +277,8 @@ Ask the AI assistant:
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/` | GET | Server info and available endpoints |
-| `/health` | GET | Health check (Symcon reachability, uptime) |
+| `/health` | GET | Health check (Symcon reachability, uptime, version) |
+| `/info` | GET | Detailed server configuration and Symcon version (requires authentication) |
 | `/mcp` | POST/GET/DELETE | MCP Streamable HTTP transport |
 | `/sse` | GET | MCP SSE transport (if `MCP_TRANSPORT=sse`) |
 | `/messages` | POST | SSE message handler |
@@ -318,6 +319,7 @@ npm run test:all
 | Unit: SymconClient | `tests/symcon-client.test.ts` | MockSymconServer (in-process) |
 | Unit: MCP tools | `tests/tools.test.ts` | MockSymconServer + InMemoryTransport |
 | Unit: HTTP server | `tests/http-server.test.ts` | MockSymconServer + spawned Express |
+| Unit: Info endpoint | `tests/info.test.ts` | MockSymconServer + spawned Express (auth & config) |
 | Integration | `tests/integration.test.ts` | Real `symcon/symcon-server` Docker container |
 
 ---

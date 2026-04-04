@@ -48,6 +48,35 @@
         }
       }
     },
+    "/info": {
+      "get": {
+        "summary": "Server Info",
+        "description": "Returns server version and configuration (with sensitive data masked)",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiKeyHeader": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Server information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InfoResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
     "/mcp": {
       "post": {
         "summary": "MCP Streamable HTTP Endpoint",
@@ -138,6 +167,31 @@
       }
     },
     "schemas": {
+      "InfoResponse": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string"
+          },
+          "config": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "symcon": {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "string"
+              },
+              "error": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
       "HealthResponse": {
         "type": "object",
         "properties": {
