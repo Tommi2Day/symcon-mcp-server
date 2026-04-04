@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "symcon": {
+      "url": "http://localhost:4096/mcp",
+      "headers": {
+        "Authorization": "Bearer <MCP_UTH_TOKEN>"
+      }
+    }
+  }
+}

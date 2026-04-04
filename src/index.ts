@@ -1,6 +1,7 @@
 import express, { Request, Response, NextFunction } from "express";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { SymconClient } from "./symcon.js";
 import { registerTools } from "./tools.js";
@@ -8,7 +9,7 @@ import { logger } from "./logger.js";
 
 const PORT = parseInt(process.env.MCP_PORT || "4096", 10);
 const MCP_AUTH_TOKEN = process.env.MCP_AUTH_TOKEN || "";
-const TRANSPORT = process.env.MCP_TRANSPORT || "streamable"; // "streamable" | "sse"
+const TRANSPORT = process.env.MCP_TRANSPORT || "streamable"; // "streamable" | "sse" | "stdio"
 
 const symcon = new SymconClient({
   url: process.env.SYMCON_API_URL || "http://localhost:3777/api/",
@@ -157,6 +158,14 @@ if (TRANSPORT === "sse") {
   );
 
   logger.info(`Using SSE transport at /sse + /messages`);
+}
+
+// ─── Stdio Transport (standard CLI usage) ───────────────────────────────────
+if (TRANSPORT === "stdio") {
+  const transport = new StdioServerTransport();
+  const server = createMcpServer();
+  await server.connect(transport);
+  logger.info(`Using Stdio transport`);
 }
 
 // ─── Root info ───────────────────────────────────────────────────────────────
