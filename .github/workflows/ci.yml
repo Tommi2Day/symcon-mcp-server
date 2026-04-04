@@ -41,65 +41,25 @@ jobs:
     # Only run on main branch and PRs targeting main
     if: github.event_name == 'push' || github.base_ref == 'main'
 
-    services:
-      symcon-test:
-        image: symcon/symcon:latest
-        ports:
-          - 3777:3777
-        env:
-          SYMCON_API_USER: test@symcon.de
-          SYMCON_API_PASSWORD: symcon
-        options: >-
-          --health-cmd "bash -c 'exec 3<>/dev/tcp/localhost/3777 && echo -e \"GET /api/ HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n\" >&3 && cat <&3 | grep -q \"HTTP/1.1 200\"'"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 12
-          --health-start-period 30s
-
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: "20"
-          cache: "npm"
+          node-version: 24
+          cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Setup Symcon Credentials
-        run: |
-          docker exec symcon-test bash -c '
-            if [ ! -f /root/.symcon ] && [ -n "$SYMCON_API_USER" ] && [ -n "$SYMCON_API_PASSWORD" ]; then
-              SYMCON_API_PASSWORD_BASE64=$(echo -n "$SYMCON_API_PASSWORD" | base64)
-              echo "Licensee=$SYMCON_API_USER" > /root/.symcon
-              echo "Password=$SYMCON_API_PASSWORD_BASE64" >> /root/.symcon
-              chmod 600 /root/.symcon
-              echo "Generated /root/.symcon"
-            fi
-          '
-        env:
-          SYMCON_API_USER: test@symcon.de
-          SYMCON_API_PASSWORD: symcon
-
-      - name: Build
-        run: npm run build
-
-      - name: Wait for Symcon to be ready
-        run: |
-          echo "Waiting for Symcon..."
-          for i in $(seq 1 30); do
-            if bash -c 'exec 3<>/dev/tcp/127.0.0.1/3777 && echo -e "GET /api/ HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n" >&3 && cat <&3' | grep -q 'HTTP/1.1 200'; then
-              echo "Symcon is ready!"
-              break
-            fi
-            echo "Attempt $i/30 - waiting..."
-            sleep 5
-          done
+      - name: Start Symcon via Docker Compose
+        run: docker compose -f docker/docker-compose.test.yml up -d --wait
 
       - name: Run integration tests
         env:
           SYMCON_TEST_URL: http://127.0.0.1:3777/api/
-          SYMCON_API_USER: test@symcon.de
-          SYMCON_API_PASSWORD: symcon
         run: npm run test:integration
+
+      - name: Stop Symcon
+        if: always()
+        run: docker compose -f docker/docker-compose.test.yml down --volumes

@@ -14,6 +14,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+COMPOSE_FILE="docker/docker-compose.test.yml"
 
 MODE="unit"
 EXTRA_ARGS=()
@@ -31,48 +32,26 @@ echo "[test] Building test image with context: ."
 cd "$PROJECT_DIR"
 MSYS_NO_PATHCONV=1 docker build -t symcon-mcp-test --target builder . --quiet
 
-SYMCON_NET=""
 SYMCON_ENV=""
-SYMCON_CONTAINER="symcon-unit-test-$$"
 
-# ─── Integration: start Symcon container ─────────────────────────────────────
+# ─── Integration: start Symcon container via docker-compose ───────────────────
 if [[ "$MODE" == "integration" ]]; then
-  echo "[test] Pulling symcon/symcon:latest..."
-  docker pull symcon/symcon:latest --quiet || true
+  echo "[test] Starting Symcon container via docker-compose..."
+  MSYS_NO_PATHCONV=1 docker compose -f "$COMPOSE_FILE" down --volumes 2>/dev/null || true
+  MSYS_NO_PATHCONV=1 docker compose -f "$COMPOSE_FILE" up -d --wait
 
-  echo "[test] Starting Symcon test container..."
-  # Define default credentials for integration tests
-  SYMCON_API_USER="test@symcon.de"
-  SYMCON_API_PASSWORD="symcon"
-
-  MSYS_NO_PATHCONV=1 docker run -d \
-    --name "$SYMCON_CONTAINER" \
-    -e SYMCON_API_USER="$SYMCON_API_USER" \
-    -e SYMCON_API_PASSWORD="$SYMCON_API_PASSWORD" \
-    --entrypoint /bin/sh \
-    symcon/symcon:latest \
-    -c 'if [ ! -f /root/.symcon ]; then \
-        SYMCON_API_PASSWORD_BASE64=$(echo -n "'"$SYMCON_API_PASSWORD"'" | base64); \
-        echo "Licensee='"$SYMCON_API_USER"'" > /root/.symcon; \
-        echo "Password=$SYMCON_API_PASSWORD_BASE64" >> /root/.symcon; \
-        chmod 600 /root/.symcon; \
-        fi; exec /usr/bin/symcon'
-
-  # Wait for Symcon to become ready
-  echo "[test] Waiting for Symcon..."
-  for i in $(seq 1 30); do
-    if MSYS_NO_PATHCONV=1 docker exec "$SYMCON_CONTAINER" \
-        bash -c 'exec 3<>/dev/tcp/localhost/3777 && echo -e "GET /api/ HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n" >&3 && cat <&3 | grep -q "HTTP/1.1 200"' 2>/dev/null; then
-      echo "[test] Symcon ready after $((i*2))s"
-      break
-    fi
-    sleep 2
-  done
-
-  SYMCON_IP=$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$SYMCON_CONTAINER")
-  SYMCON_ENV="-e SYMCON_TEST_URL=http://${SYMCON_IP}:3777/api/ -e SYMCON_API_USER=$SYMCON_API_USER -e SYMCON_API_PASSWORD=$SYMCON_API_PASSWORD"
-
-  trap 'echo "[test] Removing Symcon container..."; docker rm -f "$SYMCON_CONTAINER" 2>/dev/null || true' EXIT
+  # Get container IP for internal communication within Docker if needed, 
+  # but here we run tests from another container, so they should probably be on the same network.
+  # However, scripts/test.sh currently runs the test container without being on the same network as the compose services.
+  # Docker Compose creates its own network.
+  
+  # For simplicity, we can just use host networking for the test container or join the compose network.
+  # But the current script uses 127.0.0.1 if SYMCON_TEST_URL is not set.
+  # Let's check how the test container should talk to Symcon.
+  
+  SYMCON_ENV="-e SYMCON_TEST_URL=http://host.docker.internal:3777/api/ -e DOCKER_AVAILABLE=true"
+  
+  trap 'echo "[test] Stopping Symcon container..."; MSYS_NO_PATHCONV=1 docker compose -f "$COMPOSE_FILE" down --volumes 2>/dev/null || true' EXIT
 fi
 
 # ─── Determine npm command ────────────────────────────────────────────────────
@@ -93,6 +72,7 @@ echo "[test] Running: $NPM_CMD"
 MSYS_NO_PATHCONV=1 docker run --rm \
   -v ".:/app:ro" \
   -w /app \
+  --add-host=host.docker.internal:host-gateway \
   $SYMCON_ENV \
   symcon-mcp-test \
   sh -c "npm ci --silent && $NPM_CMD"

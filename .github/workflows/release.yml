@@ -81,14 +81,26 @@ jobs:
       - name: Run Coverage
         run: npx vitest run --coverage
 
+      - name: Test
+        run: npm test
+
+      - name: Start Symcon via Docker Compose
+        run: docker compose -f docker/docker-compose.test.yml up -d --wait
+
+      - name: Run Integration Tests
+        env:
+          SYMCON_TEST_URL: http://127.0.0.1:3777/api/
+        run: npm run test:integration
+
+      - name: Stop Symcon
+        if: always()
+        run: docker compose -f docker/docker-compose.test.yml down --volumes
+
       - name: Upload results to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: Tommi2Day/pg-mcp-server
-
-      - name: Test
-        run: npm test
 
   docker:
     name: Build & Push

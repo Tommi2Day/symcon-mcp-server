@@ -8,7 +8,7 @@ COPY package*.json ./
 RUN npm ci --omit=dev=false
 
 # Copy source and build
-COPY tsconfig.json ./
+COPY tsconfig*.json ./
 COPY src ./src/
 RUN npm run build
 
