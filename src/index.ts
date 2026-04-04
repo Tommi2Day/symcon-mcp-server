@@ -212,7 +212,7 @@ app.get("/", (_req: Request, res: Response) => {
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
-  logger.info(`Symcon MCP Server listening on port ${PORT}`);
+  logger.info(`Symcon MCP Server listening at http://localhost:${PORT}`);
   logger.info(`Symcon API: ${process.env.SYMCON_API_URL}`);
   logger.info(`Auth: ${MCP_AUTH_TOKEN ? "enabled" : "disabled"}`);
   logger.info(`Transport: ${TRANSPORT}`);
