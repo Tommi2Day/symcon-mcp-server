@@ -3,7 +3,7 @@
     "symcon": {
       "url": "http://localhost:4096/mcp",
       "headers": {
-        "Authorization": "Bearer <MCP_UTH_TOKEN>"
+        "Authorization": "Bearer <MCP_AUTH_TOKEN>"
       }
     }
   }
