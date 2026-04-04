@@ -161,7 +161,10 @@ export class SymconClient {
   }
 
   async createScript(parentId: number, name: string): Promise<number> {
-    return this.rpc<number>("IPS_CreateScript", [0, name, parentId]);
+    const scriptId = await this.rpc<number>("IPS_CreateScript", [0]);
+    await this.rpc("IPS_SetName", [scriptId, name]);
+    await this.rpc("IPS_SetParent", [scriptId, parentId]);
+    return scriptId;
   }
 
   async setScriptContent(scriptId: number, content: string): Promise<boolean> {
@@ -169,7 +172,7 @@ export class SymconClient {
   }
 
   async deleteScript(scriptId: number): Promise<boolean> {
-    return this.rpc<boolean>("IPS_DeleteScript", [scriptId]);
+    return this.rpc<boolean>("IPS_DeleteScript", [scriptId, false]);
   }
 
   // ─── Snapshot helper ──────────────────────────────────────────────────────

@@ -169,6 +169,8 @@ export function createDefaultMock(): MockSymconServer {
   mock.on("IPS_RunScript", () => "");
   mock.on("IPS_RunScriptText", () => "script_result");
   mock.on("IPS_CreateScript", () => 99001);
+  mock.on("IPS_SetName", () => true);
+  mock.on("IPS_SetParent", () => true);
   mock.on("IPS_SetScriptContent", () => true);
   mock.on("IPS_DeleteScript", () => true);
 
