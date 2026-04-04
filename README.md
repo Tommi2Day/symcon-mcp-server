@@ -5,9 +5,13 @@ Connects AI assistants to [IP-Symcon](https://www.symcon.de) via the Model Conte
 [![CI](https://github.com/tommi2day/symcon-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/tommi2day/symcon-mcp-server/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/tommi2day/symcon-mcp-server/graph/badge.svg)](https://codecov.io/gh/tommi2day/symcon-mcp-server)
 [![GitHub release](https://img.shields.io/github/v/release/tommi2day/symcon-mcp-server)](https://github.com/tommi2day/symcon-mcp-server/releases)
-[![Docker Pulls](https://img.shields.io/docker/pulls/tommi2day/symcon-mcp-server)](https://hub.docker.com/r/tommi2day/symcon-mcp-server)
+[![Docker Image](https://img.shields.io/docker/pulls/tommi2day/symcon-mcp-server?logo=docker&label=docker%20pulls)](https://hub.docker.com/r/tommi2day/symcon-mcp-server)
 
 Exposes the Symcon JSON-RPC API as MCP tools so that AI assistants (Claude, Cursor, VS Code Copilot, …) can read and control your smart home.
+
+> [!IMPORTANT]
+> The Symcon JSON-RPC API **requires authentication**. You must provide both `SYMCON_API_USER` (your license email) and `SYMCON_API_PASSWORD`.
+
 
 ## Overview
 
@@ -20,17 +24,17 @@ Exposes the Symcon JSON-RPC API as MCP tools so that AI assistants (Claude, Curs
 
 ## Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `MCP_PORT` | `4096` | Port the server listens on |
-| `MCP_HOST_PORT` | `4096` | Docker host port |
-| `MCP_TRANSPORT` | `streamable` | `streamable`, `sse`, or `stdio` |
+| Variable | Default | Description                                           |
+|----------|---------|-------------------------------------------------------|
+| `MCP_PORT` | `4096` | Port the server listens on                            |
+| `MCP_HOST_PORT` | `4096` | Docker host port                                      |
+| `MCP_TRANSPORT` | `streamable` | `streamable`, `sse`, or `stdio`                       |
 | `MCP_AUTH_TOKEN` | *(empty)* | Bearer token; [How to create?](#token-authentication) |
-| `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
-| `SYMCON_API_URL` | `http://host.docker.internal:3777/api/` | Symcon JSON-RPC endpoint |
-| `SYMCON_API_USER` | *(empty)* | Symcon username (optional) |
-| `SYMCON_API_PASSWORD` | *(empty)* | Symcon password (optional) |
-| `SYMCON_TLS_VERIFY` | `true` | Set `false` for self-signed certs |
+| `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error`                      |
+| `SYMCON_API_URL` | `http://host.docker.internal:3777/api/` | Symcon [JSON-RPC endpoint](https://www.symcon.de/en/service/documentation/developer-area/data-exchange/) |
+| `SYMCON_API_USER` | *(empty)* | Symcon license username (required)                   |
+| `SYMCON_API_PASSWORD` | *(empty)* | Symcon password (required)                           |
+| `SYMCON_TLS_VERIFY` | `true` | Set `false` for self-signed certs                     |
 
 ---
 
@@ -48,6 +52,7 @@ docker pull tommi2day/symcon-mcp-server:latest
 docker run -d --name symcon-mcp-server \
   -p 4096:4096 \
   -e SYMCON_API_URL=http://192.168.1.100:3777/api/ \
+  -e SYMCON_API_USER=your-license-email@example.com \
   -e SYMCON_API_PASSWORD=your-symcon-password \
   -e MCP_AUTH_TOKEN=my-secret-token \
   tommi2day/symcon-mcp-server:latest
@@ -63,6 +68,7 @@ services:
       - "4096:4096"
     environment:
       - SYMCON_API_URL=http://192.168.1.100:3777/api/
+      - SYMCON_API_USER=your-license-email@example.com
       - SYMCON_API_PASSWORD=your-symcon-password
       - MCP_AUTH_TOKEN=my-secret-token
 ```
@@ -112,6 +118,7 @@ Set `MCP_TRANSPORT=stdio` and run via Node.js or Docker.
       "env": {
         "MCP_TRANSPORT": "stdio",
         "SYMCON_API_URL": "http://192.168.1.100:3777/api/",
+        "SYMCON_API_USER": "your-license-email@example.com",
         "SYMCON_API_PASSWORD": "your-symcon-password"
       }
     }
@@ -133,6 +140,8 @@ If you have a Symcon instance running elsewhere, run just the MCP server:
 docker run -d --name symcon-mcp-server \
   -p 4096:4096 \
   -e SYMCON_API_URL=http://192.168.1.100:3777/api/ \
+  -e SYMCON_API_USER=your-license-email@example.com \
+  -e SYMCON_API_PASSWORD=your-symcon-password \
   -e MCP_AUTH_TOKEN=my-secret-token \
   tommi2day/symcon-mcp-server:latest
 ```
@@ -166,7 +175,7 @@ Use this if you want to run both **IP-Symcon** and the **MCP Server** together i
    cd symcon-mcp-server
    cp .env.example .env
    ```
-   Edit `.env` and set `SYMCON_API_URL`, `SYMCON_API_PASSWORD`, and `MCP_AUTH_TOKEN`.
+   Edit `.env` and set `SYMCON_API_URL`, `SYMCON_API_USER`, `SYMCON_API_PASSWORD`, and `MCP_AUTH_TOKEN`.
 
 2. **Start**
    ```bash
@@ -210,7 +219,7 @@ AI Client (Claude / Cursor / …)
 │   ├─ script_create      │
 │   └─ script_set_content │
 └────────────┬────────────┘
-             │ JSON-RPC
+             │ [JSON-RPC](https://www.symcon.de/en/service/documentation/developer-area/data-exchange/)
              ▼
     IP-Symcon  :3777/api/
 ```
@@ -335,7 +344,6 @@ The repository uses two primary GitHub Actions workflows:
 ## Production Checklist
 
 - [ ] Set a strong `MCP_AUTH_TOKEN`
-- [ ] Set `SYMCON_API_PASSWORD` if Symcon has authentication enabled
 - [ ] Restrict port 4096 via firewall or only expose via reverse proxy
 - [ ] Use HTTPS via a reverse proxy (Traefik, nginx, Caddy) in production
 - [ ] Check `/health` from your monitoring system

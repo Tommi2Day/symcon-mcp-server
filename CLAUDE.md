@@ -101,8 +101,10 @@ The `SymconClient` class wraps IP-Symcon's JSON-RPC API. All methods follow
 this pattern:
 
 ```typescript
-async getValue(variableId: number): Promise<unknown> {
-  return this.rpc("GetValue", [variableId]);
+class SymconClient {
+  async getValue(variableId: number): Promise<unknown> {
+    return this.rpc("GetValue", [variableId]);
+  }
 }
 ```
 
@@ -190,8 +192,8 @@ Variable types: `0=Boolean`, `1=Integer`, `2=Float`, `3=String`
 | `MCP_AUTH_TOKEN` | *(empty)* | Empty = no auth |
 | `LOG_LEVEL` | `info` | `debug`/`info`/`warn`/`error` |
 | `SYMCON_API_URL` | `http://host.docker.internal:3777/api/` | |
-| `SYMCON_API_USER` | *(empty)* | Basic auth username |
-| `SYMCON_API_PASSWORD` | *(empty)* | Basic auth password |
+| `SYMCON_API_USER` | *(empty)* | Symcon license email (required) |
+| `SYMCON_API_PASSWORD` | *(empty)* | Symcon password (required) |
 | `SYMCON_TLS_VERIFY` | `true` | `false` = skip cert check |
 
 ---
