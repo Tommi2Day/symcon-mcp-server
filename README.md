@@ -1,22 +1,188 @@
 # Symcon MCP Server 🏠
 
+Connects AI assistants to [IP-Symcon](https://www.symcon.de) via the Model Context Protocol (MCP).
+
 [![CI](https://github.com/tommi2day/symcon-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/tommi2day/symcon-mcp-server/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/tommi2day/symcon-mcp-server/graph/badge.svg)](https://codecov.io/gh/tommi2day/symcon-mcp-server)
 [![GitHub release](https://img.shields.io/github/v/release/tommi2day/symcon-mcp-server)](https://github.com/tommi2day/symcon-mcp-server/releases)
 [![Docker Pulls](https://img.shields.io/docker/pulls/tommi2day/symcon-mcp-server)](https://hub.docker.com/r/tommi2day/symcon-mcp-server)
 
-A Docker-based **Model Context Protocol (MCP) server** for [IP-Symcon](https://www.symcon.de), exposing the Symcon JSON-RPC API as MCP tools so that AI assistants (Claude, Cursor, VS Code Copilot, …) can read and control your smart home.
+Exposes the Symcon JSON-RPC API as MCP tools so that AI assistants (Claude, Cursor, VS Code Copilot, …) can read and control your smart home.
 
-## Features
+## Overview
 
-- **Streamable HTTP** transport (MCP 1.x standard), **SSE** fallback, and **Stdio** support
-- **14 MCP tools** covering variables, objects, scripts, snapshots and diffs
-- **`/health` endpoint** for monitoring and container health checks
-- **Optional Bearer token** authentication
-- **Docker & docker-compose** ready, multi-stage build (slim runtime image)
-- Supports HTTP and HTTPS connections to Symcon (with optional TLS bypass for self-signed certs)
-- Non-root container user for security
-- Structured JSON logging with configurable log level
+| Mode | Transport | When to use |
+|------|-----------|-------------|
+| Local (Node.js) | stdio | Development, no Docker |
+| Docker / Remote | HTTP or HTTPS | Different host on the network |
+
+---
+
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MCP_PORT` | `4096` | Port the server listens on |
+| `MCP_HOST_PORT` | `4096` | Docker host port |
+| `MCP_TRANSPORT` | `streamable` | `streamable`, `sse`, or `stdio` |
+| `MCP_AUTH_TOKEN` | *(empty)* | Bearer token; [How to create?](#token-authentication) |
+| `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
+| `SYMCON_API_URL` | `http://host.docker.internal:3777/api/` | Symcon JSON-RPC endpoint |
+| `SYMCON_API_USER` | *(empty)* | Symcon username (optional) |
+| `SYMCON_API_PASSWORD` | *(empty)* | Symcon password (optional) |
+| `SYMCON_TLS_VERIFY` | `true` | Set `false` for self-signed certs |
+
+---
+
+## Docker Hub
+
+The image is available on Docker Hub:
+
+```bash
+docker pull tommi2day/symcon-mcp-server:latest
+```
+
+### Quick start from Hub (HTTP)
+
+```bash
+docker run -d --name symcon-mcp-server \
+  -p 4096:4096 \
+  -e SYMCON_API_URL=http://192.168.1.100:3777/api/ \
+  -e SYMCON_API_PASSWORD=your-symcon-password \
+  -e MCP_AUTH_TOKEN=my-secret-token \
+  tommi2day/symcon-mcp-server:latest
+```
+
+### In docker-compose.yml
+
+```yaml
+services:
+  symcon-mcp-server:
+    image: tommi2day/symcon-mcp-server:latest
+    ports:
+      - "4096:4096"
+    environment:
+      - SYMCON_API_URL=http://192.168.1.100:3777/api/
+      - SYMCON_API_PASSWORD=your-symcon-password
+      - MCP_AUTH_TOKEN=my-secret-token
+```
+
+---
+
+## Token Authentication
+
+When running the MCP server as an HTTP/SSE service, it's recommended to set a strong `MCP_AUTH_TOKEN` to prevent unauthorized access to your Symcon instance.
+
+### Automatic creation
+
+If you use the provided `./scripts/run.sh` to start the server, it will automatically generate a strong 32-byte hex token for you on the first run and save it to a file named `auth_token` in the project root.
+
+### Manual creation
+
+You can generate a secure token manually using `openssl` (available on Linux, macOS, and Git Bash for Windows):
+
+```bash
+openssl rand -hex 32
+```
+
+Then, set this value as the `MCP_AUTH_TOKEN` environment variable in your `.env` file or `docker run` command.
+
+### Usage
+
+When authentication is enabled, all requests to the MCP server must include the following header:
+
+```http
+Authorization: Bearer <your-mcp-auth-token>
+```
+
+---
+
+## 1 · Local (stdio)
+
+Set `MCP_TRANSPORT=stdio` and run via Node.js or Docker.
+
+### Claude Desktop (`claude_desktop_config.json`)
+
+```json
+{
+  "mcpServers": {
+    "symcon": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "tommi2day/symcon-mcp-server"],
+      "env": {
+        "MCP_TRANSPORT": "stdio",
+        "SYMCON_API_URL": "http://192.168.1.100:3777/api/",
+        "SYMCON_API_PASSWORD": "your-symcon-password"
+      }
+    }
+  }
+}
+```
+
+---
+
+## 2 · Docker (HTTP/SSE)
+
+This mode runs the MCP server as a standalone container, exposing an HTTP endpoint for any compatible client.
+
+### Run with Docker
+
+If you have a Symcon instance running elsewhere, run just the MCP server:
+
+```bash
+docker run -d --name symcon-mcp-server \
+  -p 4096:4096 \
+  -e SYMCON_API_URL=http://192.168.1.100:3777/api/ \
+  -e MCP_AUTH_TOKEN=my-secret-token \
+  tommi2day/symcon-mcp-server:latest
+```
+
+### Access with `mcp.json`
+
+To use the server from an MCP client (like Cursor or VS Code), add it to your `mcp.json` configuration:
+
+```json
+{
+  "mcpServers": {
+    "symcon": {
+      "url": "http://localhost:4096/mcp",
+      "headers": {
+        "Authorization": "Bearer my-secret-token"
+      }
+    }
+  }
+}
+```
+
+---
+
+## 3 · Docker Compose (Full Stack)
+
+Use this if you want to run both **IP-Symcon** and the **MCP Server** together in a single stack (e.g., for testing or evaluation).
+
+1. **Clone and configure**
+   ```bash
+   git clone https://github.com/tommi2day/symcon-mcp-server.git
+   cd symcon-mcp-server
+   cp .env.example .env
+   ```
+   Edit `.env` and set `SYMCON_API_URL`, `SYMCON_API_PASSWORD`, and `MCP_AUTH_TOKEN`.
+
+2. **Start**
+   ```bash
+   # Starts both services
+   docker compose up -d
+   ```
+
+3. **Verify**
+   ```bash
+   curl http://localhost:4096/health
+   ```
+
+4. **Access Symcon GUI**
+   Open [http://localhost:3777](http://localhost:3777) in your browser to access the IP-Symcon console.
+
+---
 
 ## Architecture
 
@@ -49,105 +215,7 @@ AI Client (Claude / Cursor / …)
     IP-Symcon  :3777/api/
 ```
 
-## Quick Start
-
-### 1. Clone and configure
-
-```bash
-git clone https://github.com/your-org/symcon-mcp-server.git
-cd symcon-mcp-server
-cp .env.example .env
-```
-
-Edit `.env` and set at minimum:
-
-```env
-SYMCON_API_URL=http://192.168.1.100:3777/api/   # IP of your Symcon instance
-SYMCON_API_PASSWORD=your-symcon-password          # if configured
-MCP_AUTH_TOKEN=my-secret-token                    # recommended
-```
-
-### 2. Start with Docker Compose
-
-```bash
-docker compose up -d
-```
-
-### 3. Verify
-
-```bash
-curl http://localhost:4096/health
-```
-
-Expected response:
-
-```json
-{
-  "status": "ok",
-  "version": "1.0.0",
-  "uptime": 12.34,
-  "timestamp": "2026-04-03T10:00:00.000Z",
-  "latencyMs": 3,
-  "symcon": {
-    "url": "http://192.168.1.100:3777/api/",
-    "reachable": true
-  }
-}
-```
-
-## MCP Client Configuration
-
-### Claude Desktop (`claude_desktop_config.json`)
-
-```json
-{
-  "mcpServers": {
-    "symcon": {
-      "url": "http://localhost:4096/mcp",
-      "headers": {
-        "Authorization": "Bearer my-secret-token"
-      }
-    }
-  }
-}
-```
-
-### Cursor (`.cursor/mcp.json`)
-
-```json
-{
-  "mcpServers": {
-    "symcon": {
-      "url": "http://localhost:4096/mcp"
-    }
-  }
-}
-```
-
-> **Note:** Cursor requires HTTP (not HTTPS with self-signed certs). The default Streamable HTTP transport works well.
-
-### SSE mode (legacy clients)
-
-Set `MCP_TRANSPORT=sse` in `.env`, then connect to `http://localhost:4096/sse`.
-
-### Stdio mode (standard CLI)
-
-Set `MCP_TRANSPORT=stdio` in `.env` or as environment variable when running via `node` or `docker run`. This is the default for many local MCP installations.
-
-```json
-{
-  "mcpServers": {
-    "symcon": {
-      "command": "docker",
-      "args": ["run", "-i", "--rm", "tommi2day/symcon-mcp-server"],
-      "env": {
-        "MCP_TRANSPORT": "stdio",
-        "SYMCON_API_URL": "http://192.168.1.100:3777/api/"
-      }
-    }
-  }
-}
-```
+---
 
 ## Available MCP Tools
 
@@ -169,6 +237,8 @@ Set `MCP_TRANSPORT=stdio` in `.env` or as environment variable when running via 
 | `symcon_script_set_content` | Update an existing script's PHP content |
 | `symcon_script_delete` | Delete a script by ID |
 
+---
+
 ## Device Control Tips
 
 ### Switches & relays
@@ -182,34 +252,16 @@ Use symcon_request_action with value 0–254 (0 = off, 254 = full brightness)
 ```
 
 ### Finding your variable IDs
-
 Ask the AI assistant:
 > "Find the object ID of my living room light"
 
-The AI will use `symcon_get_object_id_by_name` or `symcon_get_variable_by_path` to resolve it.
-
 ### Snapshot & Diff (device discovery)
-
-When the AI doesn't know which variable corresponds to a device:
-
 1. AI calls `symcon_snapshot_variables` on the relevant room
 2. AI asks: *"Please toggle the device you want to assign, then tell me"*
 3. User toggles the device
 4. AI calls `symcon_diff_variables` to identify which variable changed
 
-## Configuration Reference
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `MCP_PORT` | `4096` | Port the server listens on |
-| `MCP_HOST_PORT` | `4096` | Docker host port |
-| `MCP_TRANSPORT` | `streamable` | `streamable`, `sse`, or `stdio` |
-| `MCP_AUTH_TOKEN` | *(empty)* | Bearer token; empty = no auth |
-| `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
-| `SYMCON_API_URL` | `http://host.docker.internal:3777/api/` | Symcon JSON-RPC endpoint |
-| `SYMCON_API_USER` | *(empty)* | Symcon username (optional) |
-| `SYMCON_API_PASSWORD` | *(empty)* | Symcon password (optional) |
-| `SYMCON_TLS_VERIFY` | `true` | Set `false` for self-signed certs |
+---
 
 ## Endpoints
 
@@ -222,34 +274,18 @@ When the AI doesn't know which variable corresponds to a device:
 | `/messages` | POST | SSE message handler |
 | Stdio | N/A | MCP Stdio transport (if `MCP_TRANSPORT=stdio`) |
 
-## Building from Source
-
-```bash
-npm install
-npm run build
-npm start
-```
-
-For development with hot reload:
-
-```bash
-npm run dev
-```
+---
 
 ## Development & Testing
 
-### Running tests
+### Running tests locally
 
 ```bash
-# Unit tests (no Docker / no Symcon required)
+# Install
+npm install
+
+# Unit tests
 npm test
-
-# Watch mode
-npm run test:watch
-
-# Coverage report
-npm run coverage
-npm run coverage:open   # also opens HTML report in browser
 
 # Integration tests (starts a real Symcon Docker container)
 npm run test:integration
@@ -258,15 +294,12 @@ npm run test:integration
 npm run test:all
 ```
 
-### Using the scripts (Docker-only, no local Node.js needed)
+### Using Docker Scripts
 
 ```bash
 ./scripts/test.sh                     # unit tests via Docker
 ./scripts/test.sh --integration       # unit + integration tests
-./scripts/test.sh --coverage          # coverage report
 ./scripts/lint.sh                     # lint
-./scripts/lint.sh --fix               # auto-fix lint issues
-./scripts/coverage.sh --open          # coverage + open HTML report
 ```
 
 ### Test architecture
@@ -278,8 +311,7 @@ npm run test:all
 | Unit: HTTP server | `tests/http-server.test.ts` | MockSymconServer + spawned Express |
 | Integration | `tests/integration.test.ts` | Real `symcon/symcon-server` Docker container |
 
-Integration tests are automatically skipped when Docker is not available.
-In CI they run against a service container started by GitHub Actions.
+---
 
 ## CI/CD
 
@@ -289,7 +321,7 @@ The repository uses two primary GitHub Actions workflows:
 1. **Lint**: ESLint checks.
 2. **Test**: Unit tests on Node 24.
 3. **Coverage**: Unit test coverage calculation.
-4. **Integration Tests**: Runs integration tests against a real Symcon Docker service container (using `docker/docker-compose.test.yml`).
+4. **Integration Tests**: Runs integration tests against a real Symcon Docker service container.
 5. **Report**: Uploads coverage results to Codecov.
 
 **`Release` (`release.yml`)** – triggered by a semver tag or manual dispatch:
@@ -298,8 +330,7 @@ The repository uses two primary GitHub Actions workflows:
 3. **Build & Push**: Multi-arch Docker build and push to Docker Hub (`tommi2day/symcon-mcp-server`).
 4. **Create Release**: Creates a GitHub tag (if manual) and a GitHub Release with auto-generated notes.
 
-**`Dependabot Automerge` (`dependabot-automerge.yml`)**:
-- Automatically enables auto-merge for PRs created by Dependabot to keep dependencies up-to-date.
+---
 
 ## Production Checklist
 
@@ -308,6 +339,8 @@ The repository uses two primary GitHub Actions workflows:
 - [ ] Restrict port 4096 via firewall or only expose via reverse proxy
 - [ ] Use HTTPS via a reverse proxy (Traefik, nginx, Caddy) in production
 - [ ] Check `/health` from your monitoring system
+
+---
 
 ## License
 
