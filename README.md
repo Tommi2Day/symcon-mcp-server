@@ -1,3 +1,4 @@
+[Deutsche Version des README](README.de.md)
 # Symcon MCP Server 🏠
 
 Connects AI assistants to [IP-Symcon](https://www.symcon.de) via the Model Context Protocol (MCP).
