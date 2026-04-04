@@ -95,8 +95,8 @@ describe("GET /health", () => {
 
   it("includes symcon reachability info", async () => {
     const res = await fetch(`${base()}/health`);
-    const body = await res.json() as { symcon: { reachable: boolean; url: string } };
-    expect(body.symcon.reachable).toBe(true);
+    const body = await res.json() as { symcon: { status: string; url: string } };
+    expect(body.symcon.status).toBe("ok");
     expect(body.symcon.url).toBe(symconUrl);
   });
 

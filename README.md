@@ -277,7 +277,7 @@ Ask the AI assistant:
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/` | GET | Server info and available endpoints |
-| `/health` | GET | Health check (Symcon reachability, uptime, version) |
+| `/health` | GET | Health check (Symcon status, uptime, version) |
 | `/info` | GET | Detailed server configuration and Symcon version |
 | `/mcp` | POST/GET/DELETE | MCP Streamable HTTP transport |
 | `/sse` | GET | MCP SSE transport (if `MCP_TRANSPORT=sse`) |

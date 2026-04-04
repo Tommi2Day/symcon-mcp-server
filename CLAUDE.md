@@ -45,7 +45,7 @@ tests/
     symcon-docker.ts   Helpers to start/stop a real Symcon Docker container
   symcon-client.test.ts  Unit tests for SymconClient
   tools.test.ts          Unit tests for all MCP tools (via InMemoryTransport)
-  http-server.test.ts    HTTP layer tests: /health, auth, /mcp
+  http-server.test.ts    HTTP layer tests: /health (status & error), auth, /mcp
   info.test.ts           Unit tests for /info endpoint (unauthenticated)
   integration.test.ts    Integration tests against real Symcon container
 

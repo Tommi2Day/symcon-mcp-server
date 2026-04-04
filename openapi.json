@@ -210,8 +210,12 @@
               "url": {
                 "type": "string"
               },
-              "reachable": {
-                "type": "boolean"
+              "status": {
+                "type": "string",
+                "enum": [
+                  "ok",
+                  "error"
+                ]
               },
               "error": {
                 "type": "string"
