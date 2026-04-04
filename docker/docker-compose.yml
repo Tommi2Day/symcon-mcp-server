@@ -84,9 +84,9 @@ services:
       # ── IP-Symcon Connection ─────────────────────────────────────────────
       # Use http://symcon:3777/api/ when running the symcon profile above
       SYMCON_API_URL:      ${SYMCON_API_URL:-http://host.docker.internal:3777/api/}
-      SYMCON_API_USER:     ${SYMCON_API_USER:-test@symcon.de}
-      SYMCON_API_PASSWORD: ${SYMCON_API_PASSWORD:-symcon}
-      SYMCON_TLS_VERIFY:   ${SYMCON_TLS_VERIFY:-true}  # set false for self-signed certs
+      SYMCON_API_USER:     ${SYMCON_API_USER:-}            # your symcon license email (required)
+      SYMCON_API_PASSWORD: ${SYMCON_API_PASSWORD:-}        # your symcon password (required)
+      SYMCON_TLS_VERIFY:   ${SYMCON_TLS_VERIFY:-true}      # set false for self-signed certs
 
     # Allow access to the host machine's Symcon instance (not needed with symcon profile)
     extra_hosts:
