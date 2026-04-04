@@ -283,73 +283,23 @@ In CI they run against a service container started by GitHub Actions.
 
 ## CI/CD
 
-The repository uses two GitHub Actions workflows:
+The repository uses two primary GitHub Actions workflows:
 
-**`ci.yml`** – runs on every push and pull request:
-1. ESLint
-2. Unit tests on Node 20 + 22 with coverage upload to Codecov
-3. Integration tests against a real Symcon Docker service container
-4. Docker build verification
+**`CI` (`ci.yml`)** – runs on every push and pull request:
+1. **Lint**: ESLint checks.
+2. **Test**: Unit tests on Node 24.
+3. **Coverage**: Unit test coverage calculation.
+4. **Integration Tests**: Runs integration tests against a real Symcon Docker service container (using `docker/docker-compose.test.yml`).
+5. **Report**: Uploads coverage results to Codecov.
 
-**`release.yml`** – triggered by a semver tag or manual dispatch:
-1. (Optional) version bump commit + tag
-2. Lint + unit tests
-3. Multi-arch Docker build (`linux/amd64`, `linux/arm64`)
-4. Push to Docker Hub (`tommi2day/symcon-mcp-server`) and GHCR
-5. GitHub Release with auto-generated notes
+**`Release` (`release.yml`)** – triggered by a semver tag or manual dispatch:
+1. **Bump version** (Manual only): Updates `package.json` and `openapi.json`, commits and pushes to `main`.
+2. **Lint & Test**: Runs lint, unit tests with coverage, and integration tests.
+3. **Build & Push**: Multi-arch Docker build and push to Docker Hub (`tommi2day/symcon-mcp-server`).
+4. **Create Release**: Creates a GitHub tag (if manual) and a GitHub Release with auto-generated notes.
 
-### Release
-
-```bash
-# Option 1: push a git tag
-npm version 1.2.3
-git push origin main 1.2.3
-
-# Option 2: GitHub UI
-# Actions → Release → Run workflow → enter version
-```
-
-### Required GitHub Secrets
-
-| Secret | Description |
-|--------|-------------|
-| `DOCKERHUB_USERNAME` | Docker Hub username |
-| `DOCKERHUB_TOKEN` | Docker Hub access token |
-| `CODECOV_TOKEN` | Codecov.io token (optional) |
-
-```bash
-# Set secrets via GitHub CLI
-gh secret set DOCKERHUB_USERNAME --repo tommi2day/symcon-mcp-server
-gh secret set DOCKERHUB_TOKEN    --repo tommi2day/symcon-mcp-server
-```
-
-## Docker Hub
-
-```bash
-docker pull tommi2day/symcon-mcp-server:latest
-# or from GHCR:
-docker pull ghcr.io/tommi2day/symcon-mcp-server:latest
-```
-
-| Tag | Description |
-|-----|-------------|
-| `latest` | Latest build from `main` |
-| `1.2.3` | Specific version |
-| `1.2` | Latest patch of 1.2 |
-| `1` | Latest minor of 1 |
-| `sha-abc1234` | Specific commit |
-
-## Creating the GitHub Repository
-
-```bash
-# Prerequisites: git + GitHub CLI (https://cli.github.com/)
-gh auth login
-./scripts/create-github-repo.sh
-```
-
-This script initializes git, creates the public repository under `tommi2day`,
-sets repository topics, configures branch protection, and prints the secrets
-setup instructions.
+**`Dependabot Automerge` (`dependabot-automerge.yml`)**:
+- Automatically enables auto-merge for PRs created by Dependabot to keep dependencies up-to-date.
 
 ## Production Checklist
 
