@@ -60,6 +60,12 @@ jobs:
           SYMCON_TEST_URL: http://127.0.0.1:3777/api/
         run: npm run test:integration
 
+      - name: Upload results to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: Tommi2Day/symcon-mcp-server
+
       - name: Stop Symcon
         if: always()
         run: docker compose -f docker/docker-compose.test.yml down --volumes

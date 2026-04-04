@@ -34,25 +34,15 @@ jobs:
         with:
           node-version: 24
 
-      - name: Update package.json, openapi.json and Chart.yaml
+      - name: Update package.json and openapi.json
         run: |
           npm version "${{ inputs.tag }}" --no-git-tag-version
-          node --input-type=commonjs -e "
-            const fs = require('fs'), v = '${{ inputs.tag }}';
-            const a = JSON.parse(fs.readFileSync('openapi.json'));
-            a.info.version = v;
-            fs.writeFileSync('openapi.json', JSON.stringify(a, null, 2) + '\n');
-            let c = fs.readFileSync('helm/pg-mcp-server/Chart.yaml', 'utf8');
-            c = c.replace(/^version: .+/m, 'version: ' + v)
-                 .replace(/^appVersion: .+/m, 'appVersion: \"' + v + '\"');
-            fs.writeFileSync('helm/pg-mcp-server/Chart.yaml', c);
-          "
 
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add package.json openapi.json helm/pg-mcp-server/Chart.yaml
+          git add package.json openapi.json
           git commit -m "chore: bump version to ${{ inputs.tag }}"
           git push
 
@@ -100,7 +90,7 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          slug: Tommi2Day/pg-mcp-server
+          slug: Tommi2Day/symcon-mcp-server
 
   docker:
     name: Build & Push
@@ -125,7 +115,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: tommi2day/pg-mcp-server
+          images: tommi2day/symcon-mcp-server
           tags: |
             # git tag or release → :1.2.3  :1.2  :1  :latest
             type=semver,pattern={{version}}

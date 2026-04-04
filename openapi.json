@@ -143,7 +143,10 @@
         "properties": {
           "status": {
             "type": "string",
-            "enum": ["ok", "degraded"]
+            "enum": [
+              "ok",
+              "degraded"
+            ]
           },
           "version": {
             "type": "string"
