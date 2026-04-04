@@ -3,7 +3,7 @@
   "info": {
     "title": "Symcon MCP Server",
     "description": "Model Context Protocol (MCP) server for IP-Symcon automation systems",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "contact": {
       "name": "Tommi2Day",
       "url": "https://github.com/Tommi2Day/symcon-mcp-server"
