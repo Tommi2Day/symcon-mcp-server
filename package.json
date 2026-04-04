@@ -1,6 +1,6 @@
 {
   "name": "symcon-mcp-server",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Docker-based MCP Server for IP-Symcon via JSON-RPC API",
   "type": "module",
   "main": "dist/index.js",
