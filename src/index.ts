@@ -169,7 +169,7 @@ if (TRANSPORT === "stdio") {
 }
 
 // ─── Root info ───────────────────────────────────────────────────────────────
-app.get("/info", authMiddleware, async (_req: Request, res: Response) => {
+app.get("/info", async (_req: Request, res: Response) => {
   const config = { ...process.env };
   const sensitiveKeys = ["SYMCON_API_PASSWORD", "MCP_AUTH_TOKEN"];
 

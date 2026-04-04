@@ -86,22 +86,8 @@ interface InfoResponse {
 }
 
 describe("GET /info", () => {
-  it("returns 401 when Authorization header is missing", async () => {
+  it("returns 200 and correct structure without Authorization", async () => {
     const res = await fetch(`${base()}/info`);
-    expect(res.status).toBe(401);
-  });
-
-  it("returns 401 when Authorization token is invalid", async () => {
-    const res = await fetch(`${base()}/info`, {
-      headers: { "Authorization": "Bearer invalid-token" }
-    });
-    expect(res.status).toBe(401);
-  });
-
-  it("returns 200 and correct structure with valid Authorization", async () => {
-    const res = await fetch(`${base()}/info`, {
-      headers: { "Authorization": `Bearer ${AUTH_TOKEN}` }
-    });
     expect(res.status).toBe(200);
     const body = await res.json() as InfoResponse;
     
@@ -113,9 +99,7 @@ describe("GET /info", () => {
   });
 
   it("masks sensitive configuration values", async () => {
-    const res = await fetch(`${base()}/info`, {
-      headers: { "Authorization": `Bearer ${AUTH_TOKEN}` }
-    });
+    const res = await fetch(`${base()}/info`);
     const body = await res.json() as InfoResponse;
     
     expect(body.config.SYMCON_API_PASSWORD).toBe("********");
@@ -127,9 +111,7 @@ describe("GET /info", () => {
     // Stop the mock server temporarily
     await mock.stop();
     
-    const res = await fetch(`${base()}/info`, {
-      headers: { "Authorization": `Bearer ${AUTH_TOKEN}` }
-    });
+    const res = await fetch(`${base()}/info`);
     const body = await res.json() as InfoResponse;
     
     expect(body.symcon.version).toBeUndefined();

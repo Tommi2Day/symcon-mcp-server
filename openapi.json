@@ -52,14 +52,6 @@
       "get": {
         "summary": "Server Info",
         "description": "Returns server version and configuration (with sensitive data masked)",
-        "security": [
-          {
-            "bearerAuth": []
-          },
-          {
-            "apiKeyHeader": []
-          }
-        ],
         "responses": {
           "200": {
             "description": "Server information",
@@ -70,9 +62,6 @@
                 }
               }
             }
-          },
-          "401": {
-            "description": "Unauthorized"
           }
         }
       }
