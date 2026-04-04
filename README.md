@@ -9,7 +9,7 @@ A Docker-based **Model Context Protocol (MCP) server** for [IP-Symcon](https://w
 
 ## Features
 
-- **Streamable HTTP** transport (MCP 1.x standard) with optional SSE fallback
+- **Streamable HTTP** transport (MCP 1.x standard), **SSE** fallback, and **Stdio** support
 - **14 MCP tools** covering variables, objects, scripts, snapshots and diffs
 - **`/health` endpoint** for monitoring and container health checks
 - **Optional Bearer token** authentication
@@ -130,6 +130,25 @@ Expected response:
 
 Set `MCP_TRANSPORT=sse` in `.env`, then connect to `http://localhost:4096/sse`.
 
+### Stdio mode (standard CLI)
+
+Set `MCP_TRANSPORT=stdio` in `.env` or as environment variable when running via `node` or `docker run`. This is the default for many local MCP installations.
+
+```json
+{
+  "mcpServers": {
+    "symcon": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "tommi2day/symcon-mcp-server"],
+      "env": {
+        "MCP_TRANSPORT": "stdio",
+        "SYMCON_API_URL": "http://192.168.1.100:3777/api/"
+      }
+    }
+  }
+}
+```
+
 ## Available MCP Tools
 
 | Tool | Description |
@@ -184,7 +203,7 @@ When the AI doesn't know which variable corresponds to a device:
 |----------|---------|-------------|
 | `MCP_PORT` | `4096` | Port the server listens on |
 | `MCP_HOST_PORT` | `4096` | Docker host port |
-| `MCP_TRANSPORT` | `streamable` | `streamable` or `sse` |
+| `MCP_TRANSPORT` | `streamable` | `streamable`, `sse`, or `stdio` |
 | `MCP_AUTH_TOKEN` | *(empty)* | Bearer token; empty = no auth |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
 | `SYMCON_API_URL` | `http://host.docker.internal:3777/api/` | Symcon JSON-RPC endpoint |
@@ -201,6 +220,7 @@ When the AI doesn't know which variable corresponds to a device:
 | `/mcp` | POST/GET/DELETE | MCP Streamable HTTP transport |
 | `/sse` | GET | MCP SSE transport (if `MCP_TRANSPORT=sse`) |
 | `/messages` | POST | SSE message handler |
+| Stdio | N/A | MCP Stdio transport (if `MCP_TRANSPORT=stdio`) |
 
 ## Building from Source
 
