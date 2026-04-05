@@ -164,6 +164,62 @@ Um den Server von einem MCP-Client (wie Cursor oder VS Code) aus zu nutzen, füg
 }
 ```
 
+### Claude Desktop (`claude_desktop_config.json`) — HTTP/Remote
+
+> [!WARNING]
+> **Claude Desktop unterstützt für nicht-lokale (Remote-)MCP-Server ausschließlich HTTPS.**
+> Läuft Ihr Server über einfaches HTTP und ist nicht auf `localhost` erreichbar, verweigert Claude Desktop die Verbindung.
+> Nutzen Sie eine der folgenden Möglichkeiten:
+>
+> **Option A — Empfohlen:** Stellen Sie den Server hinter einen Reverse-Proxy (Traefik, nginx, Caddy) mit gültigem TLS-Zertifikat und verwenden Sie `https://` in der URL.
+>
+> **Option B — Schnelle Alternative:** Nutzen Sie [`mcp-remote`](https://github.com/geelen/mcp-remote) als lokale stdio-Brücke. Es läuft auf Ihrem Rechner und leitet Anfragen an den HTTP-Server weiter, sodass Claude Desktop es wie ein stdio-Tool behandelt.
+
+```json
+{
+  "mcpServers": {
+    "symcon": {
+      "command": "npx",
+      "args": [
+        "-y", "mcp-remote",
+        "http://192.168.1.100:4096/mcp",
+        "--allow-http",
+        "--header", "Authorization:Bearer mein-geheimes-token"
+      ]
+    }
+  }
+}
+```
+
+### MCP-Endpunkt überprüfen
+
+**Health-Check:**
+```bash
+curl http://localhost:4096/health
+```
+
+**MCP-Initialize-Handshake** (prüft, ob der Server auf MCP-Anfragen antwortet):
+```bash
+curl -s -X POST http://localhost:4096/mcp \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer mein-geheimes-token" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}'
+```
+
+**Interaktive Browser-Oberfläche** über den [MCP Inspector](https://github.com/modelcontextprotocol/inspector):
+```bash
+# Lokaler Server — direktes HTTP
+npx @modelcontextprotocol/inspector http://localhost:4096/mcp
+
+# Remote-HTTP-Server — über mcp-remote-Brücke
+npx @modelcontextprotocol/inspector \
+  npx mcp-remote http://192.168.1.100:4096/mcp \
+  --allow-http \
+  --header "Authorization:Bearer mein-geheimes-token"
+```
+
+Der Inspector öffnet eine Browser-Oberfläche, in der Sie Tools auflisten, einzeln aufrufen und die Antworten inspizieren können.
+
 ---
 
 ## 3 · Docker Compose (Full Stack)
