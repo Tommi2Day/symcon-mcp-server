@@ -269,12 +269,15 @@ KI-Client (Claude / Cursor / …)
 │   ├─ get_children       │
 │   ├─ get_object_by_name │
 │   ├─ get_variable_path  │
-│   ├─ run_script         │
-│   ├─ run_script_text    │
 │   ├─ snapshot_variables │
 │   ├─ diff_variables     │
+│   ├─ run_script         │
+│   ├─ run_script_text    │
+│   ├─ run_script_text_ex │
+│   ├─ get_script_content │
 │   ├─ script_create      │
-│   └─ script_set_content │
+│   ├─ script_set_content │
+│   └─ script_delete      │
 └────────────┬────────────┘
              │ [JSON-RPC](https://www.symcon.de/service/dokumentation/entwicklerbereich/datenaustausch/)
              ▼
@@ -295,10 +298,12 @@ KI-Client (Claude / Cursor / …)
 | `symcon_get_children` | IDs der Kinderobjekte auflisten (0 = Wurzel) |
 | `symcon_get_object_id_by_name` | Objekt-ID anhand des Namens finden |
 | `symcon_get_variable_by_path` | Variable über einen durch Schrägstriche getrennten Pfad auflösen |
-| `symcon_run_script` | Vorhandenes Symcon-Skript per ID ausführen |
-| `symcon_run_script_text` | Beliebigen PHP-Code in Symcon ausführen |
 | `symcon_snapshot_variables` | Momentaufnahme aller Variablenwerte unter einer Wurzel erstellen |
 | `symcon_diff_variables` | Änderungen seit einer vorherigen Momentaufnahme erkennen |
+| `symcon_run_script` | Vorhandenes Symcon-Skript per ID ausführen |
+| `symcon_run_script_text` | Beliebigen PHP-Code in Symcon ausführen |
+| `symcon_run_script_text_ex` | PHP ausführen und Ausgabe, Rückgabewert sowie Fehler strukturiert zurückgeben; Ausgabe ist bytelimitiert |
+| `symcon_get_script_content` | PHP-Quellcode eines bestehenden Skripts lesen (nur lesend, keine Ausführung) |
 | `symcon_script_create` | Neues PHP-Skript in Symcon erstellen |
 | `symcon_script_set_content` | PHP-Inhalt eines bestehenden Skripts aktualisieren |
 | `symcon_script_delete` | Skript per ID löschen |
@@ -393,7 +398,7 @@ Das Repository verwendet zwei primäre GitHub Actions-Workflows:
 5. **Report**: Lädt die Abdeckungsergebnisse zu Codecov hoch.
 
 **`Release` (`release.yml`)** – wird durch ein Semver-Tag oder manuelles Auslösen gestartet:
-1. **Bump version** (nur manuell): Aktualisiert `package.json` und `openapi.json`, committet und pusht auf `main`.
+1. **Bump version** (nur manuell): Aktualisiert `package.json` und `openapi.yaml`, committet und pusht auf `main`.
 2. **Lint & Test**: Führt Linting, Unit-Tests mit Abdeckung und Integrationstests aus.
 3. **Build & Push**: Multi-Arch-Docker-Build und Push zu Docker Hub (`tommi2day/symcon-mcp-server`).
 4. **Create Release**: Erstellt ein GitHub-Tag (falls manuell) und ein GitHub-Release mit automatisch generierten Notizen.

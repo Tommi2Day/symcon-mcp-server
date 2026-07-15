@@ -53,21 +53,27 @@ export class SymconClient {
       body,
     };
 
-    // Node 18+ has native fetch; attach agent for https if needed
     if (this.agent) {
       // @ts-expect-error – undici/node fetch accepts agent via dispatcher
       fetchOptions.dispatcher = undefined; // handled below for older Node
     }
 
+    if (this.agent) {
+      // TLS verification disabled: use https module directly
+      let data: string;
+      try {
+        data = await this.httpsPost(body, headers);
+      } catch (e) {
+        logger.warn(`Symcon RPC failed [${method}]: ${e}`);
+        throw e;
+      }
+      const json = JSON.parse(data) as RpcResponse<T>;
+      if (json.error) throw new Error(`Symcon RPC error: ${json.error.message} (code ${json.error.code})`);
+      return json.result as T;
+    }
+
     let response: globalThis.Response;
     try {
-      if (this.agent) {
-        // Fallback using node-fetch style – actually use https module directly
-        const data = await this.httpsPost(body, headers);
-        const json = JSON.parse(data) as RpcResponse<T>;
-        if (json.error) throw new Error(`Symcon RPC error: ${json.error.message} (code ${json.error.code})`);
-        return json.result as T;
-      }
       response = await fetch(this.url, fetchOptions);
     } catch (e) {
       logger.warn(`Symcon RPC failed [${method}]: ${e}`);
@@ -173,6 +179,10 @@ export class SymconClient {
 
   async deleteScript(scriptId: number): Promise<boolean> {
     return this.rpc<boolean>("IPS_DeleteScript", [scriptId, false]);
+  }
+
+  async getScriptContent(scriptId: number): Promise<string> {
+    return this.rpc<string>("IPS_GetScriptContent", [scriptId]);
   }
 
   // ─── Snapshot helper ──────────────────────────────────────────────────────

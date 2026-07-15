@@ -168,6 +168,9 @@ export function createDefaultMock(): MockSymconServer {
   // Scripts
   mock.on("IPS_RunScript", () => "");
   mock.on("IPS_RunScriptText", () => "script_result");
+  mock.on("IPS_GetScriptContent", ([id]) =>
+    id === 5001 ? "<?php\necho 'Hello from script';" : "<?php\n"
+  );
   mock.on("IPS_CreateScript", () => 99001);
   mock.on("IPS_SetName", () => true);
   mock.on("IPS_SetParent", () => true);

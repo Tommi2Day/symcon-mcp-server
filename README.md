@@ -269,12 +269,15 @@ AI Client (Claude / Cursor / …)
 │   ├─ get_children       │
 │   ├─ get_object_by_name │
 │   ├─ get_variable_path  │
-│   ├─ run_script         │
-│   ├─ run_script_text    │
 │   ├─ snapshot_variables │
 │   ├─ diff_variables     │
+│   ├─ run_script         │
+│   ├─ run_script_text    │
+│   ├─ run_script_text_ex │
+│   ├─ get_script_content │
 │   ├─ script_create      │
-│   └─ script_set_content │
+│   ├─ script_set_content │
+│   └─ script_delete      │
 └────────────┬────────────┘
              │ [JSON-RPC](https://www.symcon.de/en/service/documentation/developer-area/data-exchange/)
              ▼
@@ -295,10 +298,12 @@ AI Client (Claude / Cursor / …)
 | `symcon_get_children` | List child object IDs (0 = root) |
 | `symcon_get_object_id_by_name` | Find an object ID by name |
 | `symcon_get_variable_by_path` | Resolve a variable by slash-separated path |
-| `symcon_run_script` | Execute an existing Symcon script by ID |
-| `symcon_run_script_text` | Execute arbitrary PHP code in Symcon |
 | `symcon_snapshot_variables` | Snapshot all variable values under a root |
 | `symcon_diff_variables` | Detect changes since a previous snapshot |
+| `symcon_run_script` | Execute an existing Symcon script by ID |
+| `symcon_run_script_text` | Execute arbitrary PHP code in Symcon |
+| `symcon_run_script_text_ex` | Execute PHP and return structured output, return value, and errors as separate fields; output is byte-capped |
+| `symcon_get_script_content` | Read the PHP source of an existing script (read-only, no execution) |
 | `symcon_script_create` | Create a new PHP script in Symcon |
 | `symcon_script_set_content` | Update an existing script's PHP content |
 | `symcon_script_delete` | Delete a script by ID |
@@ -393,7 +398,7 @@ The repository uses two primary GitHub Actions workflows:
 5. **Report**: Uploads coverage results to Codecov.
 
 **`Release` (`release.yml`)** – triggered by a semver tag or manual dispatch:
-1. **Bump version** (Manual only): Updates `package.json` and `openapi.json`, commits and pushes to `main`.
+1. **Bump version** (Manual only): Updates `package.json` and `openapi.yaml`, commits and pushes to `main`.
 2. **Lint & Test**: Runs lint, unit tests with coverage, and integration tests.
 3. **Build & Push**: Multi-arch Docker build and push to Docker Hub (`tommi2day/symcon-mcp-server`).
 4. **Create Release**: Creates a GitHub tag (if manual) and a GitHub Release with auto-generated notes.

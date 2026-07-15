@@ -36,7 +36,7 @@ connected Symcon instance.
 src/
   index.ts        Express server; mounts Streamable HTTP (/mcp) or SSE (/sse) transport
   symcon.ts       SymconClient – thin wrapper around fetch/https for the JSON-RPC API
-  tools.ts        registerTools() – all 15 MCP tool definitions
+  tools.ts        registerTools() – all 17 MCP tool definitions
   logger.ts       Simple stdout/stderr logger with log level
 
 tests/
@@ -115,9 +115,13 @@ with `rejectUnauthorized: false`.
 
 ### `src/tools.ts` – MCP tools
 
-`registerTools(server, symcon)` registers all tools on the `McpServer` instance.
+`registerTools(server, symcon)` registers all 17 tools on the `McpServer` instance.
 Each tool is defined with a Zod schema for input validation and returns MCP
 `content` blocks (always `type: "text"` with a JSON string).
+
+Two tools deserve extra attention:
+- **`symcon_get_script_content`** – read-only call to `IPS_GetScriptContent`; never executes code.
+- **`symcon_run_script_text_ex`** – wraps the user's PHP in an output-buffering envelope using `eval(base64_decode(...))` so Symcon globals stay in scope; returns `{ success, output, returnValue, executionError, truncated, transportError }` without needing a marker variable.
 
 **Adding a new tool:**
 
@@ -166,6 +170,7 @@ testing MCP tools.
 - **`IPS_RunScriptText(phpCode)`** – Execute arbitrary PHP
 - **`IPS_CreateScript(type, name, parentId)`** – Create script (type=0 for PHP)
 - **`IPS_SetScriptContent(scriptId, content)`** – Update script code
+- **`IPS_GetScriptContent(scriptId)`** – Read script PHP source (read-only)
 - **`IPS_DeleteScript(scriptId)`** – Remove script
 
 Object types: `0=Category`, `1=Instance`, `2=Variable`, `3=Script`, `4=Event`,
@@ -248,7 +253,8 @@ git push origin main 1.2.3
 ```
 
 The `npm version` command calls the `scripts/bump-version.mjs` lifecycle hook
-via `"version"` in `package.json`.
+via `"version"` in `package.json`. It syncs the version into `openapi.yaml`
+using a regex replace (no YAML library required).
 
 ---
 

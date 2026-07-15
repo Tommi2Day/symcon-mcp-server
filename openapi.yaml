@@ -1,0 +1,682 @@
+openapi: 3.1.0
+
+info:
+  title: Symcon MCP Server
+  description: |
+    Model Context Protocol (MCP) server for IP-Symcon automation systems.
+
+    The `/mcp` endpoint speaks JSON-RPC 2.0 MCP. Clients discover tools via `tools/list`
+    and invoke them via `tools/call`. All 17 tool argument schemas are documented under
+    `components/schemas`.
+  version: 0.0.4
+  contact:
+    name: Tommi2Day
+    url: https://github.com/Tommi2Day/symcon-mcp-server
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:4096
+    description: Local development server
+
+paths:
+  /health:
+    get:
+      summary: Health Check
+      description: Returns the status of the MCP server and its connection to IP-Symcon
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: Server is degraded (e.g. Symcon unreachable)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /info:
+    get:
+      summary: Server Info
+      description: Returns server version and configuration (with sensitive data masked)
+      responses:
+        '200':
+          description: Server information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InfoResponse'
+
+  /mcp:
+    post:
+      summary: MCP Streamable HTTP Endpoint
+      description: >-
+        Main entry point for Model Context Protocol using Streamable HTTP transport.
+        Accepts JSON-RPC 2.0 messages (initialize, tools/list, tools/call, etc.).
+      security:
+        - bearerAuth: []
+        - apiKeyHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/McpRequest'
+      responses:
+        '200':
+          description: Successful MCP operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpResponse'
+        '401':
+          description: Unauthorized – missing or invalid MCP_AUTH_TOKEN
+
+  /sse:
+    get:
+      summary: MCP SSE Endpoint
+      description: >-
+        Initializes a Server-Sent Events connection for MCP
+        (legacy transport, set MCP_TRANSPORT=sse).
+      security:
+        - bearerAuth: []
+        - apiKeyHeader: []
+      responses:
+        '200':
+          description: SSE stream established
+        '401':
+          description: Unauthorized
+
+  /messages:
+    post:
+      summary: MCP Message Endpoint for SSE
+      description: Endpoint to send MCP messages back to the server when using SSE transport
+      parameters:
+        - name: sessionId
+          in: query
+          required: true
+          schema:
+            type: string
+      security:
+        - bearerAuth: []
+        - apiKeyHeader: []
+      responses:
+        '202':
+          description: Message accepted
+        '401':
+          description: Unauthorized
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+    apiKeyHeader:
+      type: apiKey
+      in: header
+      name: x-mcp-api-key
+
+  schemas:
+
+    # ── MCP Protocol ──────────────────────────────────────────────────────────
+
+    McpRequest:
+      type: object
+      description: JSON-RPC 2.0 request envelope used by the MCP protocol
+      required: [jsonrpc, method]
+      properties:
+        jsonrpc:
+          type: string
+          enum: ['2.0']
+        method:
+          type: string
+          description: 'MCP method name, e.g. initialize, tools/list, tools/call'
+        params:
+          type: object
+          description: Method parameters; shape depends on the method
+        id:
+          description: Request ID (omit for notifications)
+          oneOf:
+            - type: string
+            - type: number
+            - type: 'null'
+
+    McpResponse:
+      type: object
+      description: JSON-RPC 2.0 response envelope
+      properties:
+        jsonrpc:
+          type: string
+          enum: ['2.0']
+        id:
+          oneOf:
+            - type: string
+            - type: number
+            - type: 'null'
+        result:
+          type: object
+        error:
+          $ref: '#/components/schemas/McpError'
+
+    McpError:
+      type: object
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data: {}
+
+    McpContentBlock:
+      type: object
+      description: A single content block returned by a tool
+      required: [type, text]
+      properties:
+        type:
+          type: string
+          enum: [text]
+        text:
+          type: string
+          description: JSON-encoded tool result payload
+
+    McpToolCallResult:
+      type: object
+      description: Result wrapper for tools/call responses
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/McpContentBlock'
+        isError:
+          type: boolean
+
+    # ── HTTP Endpoints ────────────────────────────────────────────────────────
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        version:
+          type: string
+        uptime:
+          type: number
+        timestamp:
+          type: string
+          format: date-time
+        latencyMs:
+          type: number
+        symcon:
+          type: object
+          properties:
+            url:
+              type: string
+            status:
+              type: string
+              enum: [ok, error]
+            error:
+              type: string
+
+    InfoResponse:
+      type: object
+      properties:
+        version:
+          type: string
+        config:
+          type: object
+          additionalProperties:
+            type: string
+        symcon:
+          type: object
+          properties:
+            version:
+              type: string
+            error:
+              type: string
+
+    # ── Shared Types ──────────────────────────────────────────────────────────
+
+    SymconVariableValue:
+      description: A Symcon variable value (boolean, number, or string)
+      oneOf:
+        - type: boolean
+        - type: number
+        - type: string
+
+    # ── symcon_get_value ──────────────────────────────────────────────────────
+
+    SymconGetValueArgs:
+      type: object
+      required: [variableId]
+      properties:
+        variableId:
+          type: integer
+          description: The numeric ID of the variable
+
+    SymconGetValueResult:
+      type: object
+      properties:
+        variableId:
+          type: integer
+        value:
+          $ref: '#/components/schemas/SymconVariableValue'
+
+    # ── symcon_set_value ──────────────────────────────────────────────────────
+
+    SymconSetValueArgs:
+      type: object
+      required: [variableId, value]
+      properties:
+        variableId:
+          type: integer
+          description: The numeric ID of the variable
+        value:
+          $ref: '#/components/schemas/SymconVariableValue'
+
+    SymconSetValueResult:
+      type: object
+      properties:
+        variableId:
+          type: integer
+        value:
+          $ref: '#/components/schemas/SymconVariableValue'
+        success:
+          type: boolean
+
+    # ── symcon_request_action ─────────────────────────────────────────────────
+
+    SymconRequestActionArgs:
+      type: object
+      required: [variableId, value]
+      properties:
+        variableId:
+          type: integer
+          description: The numeric ID of the variable
+        value:
+          $ref: '#/components/schemas/SymconVariableValue'
+          description: 'Action value, e.g. true/false for switches, 0–254 for Hue brightness'
+
+    SymconRequestActionResult:
+      type: object
+      properties:
+        variableId:
+          type: integer
+        value:
+          $ref: '#/components/schemas/SymconVariableValue'
+        success:
+          type: boolean
+
+    # ── symcon_get_variable ───────────────────────────────────────────────────
+
+    SymconGetVariableArgs:
+      type: object
+      required: [variableId]
+      properties:
+        variableId:
+          type: integer
+          description: The numeric ID of the variable
+
+    SymconGetVariableResult:
+      type: object
+      properties:
+        VariableID:
+          type: integer
+        VariableType:
+          type: integer
+          description: '0=Boolean, 1=Integer, 2=Float, 3=String'
+        VariableTypeName:
+          type: string
+        VariableUpdated:
+          type: integer
+        VariableChanged:
+          type: integer
+        VariableUpdatedAt:
+          type: string
+          format: date-time
+        VariableChangedAt:
+          type: string
+          format: date-time
+        VariableProfile:
+          type: string
+        VariableCustomProfile:
+          type: string
+        VariableValue: {}
+
+    # ── symcon_get_object ─────────────────────────────────────────────────────
+
+    SymconGetObjectArgs:
+      type: object
+      required: [objectId]
+      properties:
+        objectId:
+          type: integer
+          description: The numeric ID of the object
+
+    SymconGetObjectResult:
+      type: object
+      properties:
+        ObjectID:
+          type: integer
+        ObjectType:
+          type: integer
+          description: '0=Category, 1=Instance, 2=Variable, 3=Script, 4=Event, 5=Media, 6=Link'
+        ObjectTypeName:
+          type: string
+        ObjectName:
+          type: string
+        ObjectInfo:
+          type: string
+        ParentID:
+          type: integer
+        HasChildren:
+          type: boolean
+
+    # ── symcon_get_children ───────────────────────────────────────────────────
+
+    SymconGetChildrenArgs:
+      type: object
+      properties:
+        objectId:
+          type: integer
+          default: 0
+          description: The parent object ID (0 = root)
+
+    SymconGetChildrenResult:
+      type: object
+      properties:
+        objectId:
+          type: integer
+        children:
+          type: array
+          items:
+            type: integer
+
+    # ── symcon_get_object_id_by_name ──────────────────────────────────────────
+
+    SymconGetObjectIdByNameArgs:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          description: The exact name of the object
+        parentId:
+          type: integer
+          default: 0
+          description: Parent object ID (0 = search all)
+
+    SymconGetObjectIdByNameResult:
+      type: object
+      properties:
+        name:
+          type: string
+        parentId:
+          type: integer
+        objectId:
+          type: integer
+
+    # ── symcon_get_variable_by_path ───────────────────────────────────────────
+
+    SymconGetVariableByPathArgs:
+      type: object
+      required: [path]
+      properties:
+        path:
+          type: string
+          description: 'Slash-separated path from root, e.g. Rooms/LivingRoom/Light'
+
+    SymconGetVariableByPathResult:
+      type: object
+      properties:
+        path:
+          type: string
+        objectId:
+          type: integer
+        value:
+          $ref: '#/components/schemas/SymconVariableValue'
+
+    # ── symcon_snapshot_variables ─────────────────────────────────────────────
+
+    SymconSnapshotVariablesArgs:
+      type: object
+      properties:
+        rootId:
+          type: integer
+          default: 0
+          description: Root object ID (0 = entire tree, expensive)
+        maxDepth:
+          type: integer
+          minimum: 1
+          maximum: 10
+          default: 5
+          description: Maximum tree traversal depth
+
+    SymconSnapshotVariablesResult:
+      type: object
+      properties:
+        rootId:
+          type: integer
+        maxDepth:
+          type: integer
+        count:
+          type: integer
+        snapshot:
+          type: object
+          description: Map of variableId (string) to current value
+          additionalProperties: {}
+
+    # ── symcon_diff_variables ─────────────────────────────────────────────────
+
+    SymconDiffVariablesArgs:
+      type: object
+      required: [previousSnapshot]
+      properties:
+        previousSnapshot:
+          type: string
+          description: JSON string of a previous symcon_snapshot_variables result
+        rootId:
+          type: integer
+          default: 0
+          description: Root object ID to collect current state from
+        maxDepth:
+          type: integer
+          minimum: 1
+          maximum: 10
+          default: 5
+
+    SymconDiffVariablesResult:
+      type: object
+      properties:
+        changesFound:
+          type: integer
+        changes:
+          type: array
+          items:
+            type: object
+            properties:
+              variableId:
+                type: integer
+              before: {}
+              after: {}
+
+    # ── symcon_run_script ─────────────────────────────────────────────────────
+
+    SymconRunScriptArgs:
+      type: object
+      required: [scriptId]
+      properties:
+        scriptId:
+          type: integer
+          description: The numeric ID of the script
+
+    SymconRunScriptResult:
+      type: object
+      properties:
+        scriptId:
+          type: integer
+        result:
+          type: string
+
+    # ── symcon_run_script_text ────────────────────────────────────────────────
+
+    SymconRunScriptTextArgs:
+      type: object
+      required: [script]
+      properties:
+        script:
+          type: string
+          description: PHP code to execute in IP-Symcon
+
+    SymconRunScriptTextResult:
+      type: object
+      properties:
+        result:
+          type: string
+
+    # ── symcon_run_script_text_ex ─────────────────────────────────────────────
+
+    SymconRunScriptTextExArgs:
+      type: object
+      required: [script]
+      description: >-
+        Execute PHP with structured output capture. Returns stdout, return value,
+        and execution errors as separate fields without requiring a marker variable.
+      properties:
+        script:
+          type: string
+          description: >-
+            PHP code to execute (with or without opening <?php tag).
+            All Symcon global variables and functions are accessible.
+        maxOutputBytes:
+          type: integer
+          minimum: 1
+          maximum: 65536
+          default: 4096
+          description: >-
+            Maximum bytes of captured stdout to return.
+            Prevents accidentally transferring large or sensitive payloads.
+
+    SymconRunScriptTextExResult:
+      type: object
+      description: >-
+        Structured result with three distinct channels: captured stdout,
+        PHP return value, and PHP execution errors.
+      properties:
+        success:
+          type: boolean
+          description: >-
+            true when the Symcon RPC call itself succeeded;
+            false indicates a transport-level failure
+        output:
+          type: string
+          description: Captured stdout (echo/print output), capped at maxOutputBytes
+        returnValue:
+          description: Value returned by the PHP script's return statement, or null
+        executionError:
+          description: PHP exception or error caught during execution, or null
+          oneOf:
+            - type: 'null'
+            - type: object
+              properties:
+                class:
+                  type: string
+                  description: PHP exception class name
+                message:
+                  type: string
+        truncated:
+          type: boolean
+          description: true when output was longer than maxOutputBytes and was cut
+        transportError:
+          description: 'Set when the Symcon RPC call failed (network/HTTP error); null on success'
+          oneOf:
+            - type: 'null'
+            - type: string
+
+    # ── symcon_get_script_content ─────────────────────────────────────────────
+
+    SymconGetScriptContentArgs:
+      type: object
+      required: [scriptId]
+      description: Read the PHP source code of an existing script. Read-only — never executes code.
+      properties:
+        scriptId:
+          type: integer
+          description: The numeric ID of the script
+
+    SymconGetScriptContentResult:
+      type: object
+      properties:
+        scriptId:
+          type: integer
+        content:
+          type: string
+          description: Full PHP source code of the script, including the opening <?php tag
+
+    # ── symcon_script_create ──────────────────────────────────────────────────
+
+    SymconScriptCreateArgs:
+      type: object
+      required: [parentId, name]
+      properties:
+        parentId:
+          type: integer
+          description: Parent category ID
+        name:
+          type: string
+          description: Script name
+        content:
+          type: string
+          default: "<?php\n"
+          description: Initial PHP script content
+
+    SymconScriptCreateResult:
+      type: object
+      properties:
+        scriptId:
+          type: integer
+        name:
+          type: string
+
+    # ── symcon_script_set_content ─────────────────────────────────────────────
+
+    SymconScriptSetContentArgs:
+      type: object
+      required: [scriptId, content]
+      properties:
+        scriptId:
+          type: integer
+          description: The numeric ID of the script
+        content:
+          type: string
+          description: New PHP script content
+
+    SymconScriptSetContentResult:
+      type: object
+      properties:
+        scriptId:
+          type: integer
+        success:
+          type: boolean
+
+    # ── symcon_script_delete ──────────────────────────────────────────────────
+
+    SymconScriptDeleteArgs:
+      type: object
+      required: [scriptId]
+      properties:
+        scriptId:
+          type: integer
+          description: The numeric ID of the script to remove
+
+    SymconScriptDeleteResult:
+      type: object
+      properties:
+        scriptId:
+          type: integer
+        success:
+          type: boolean

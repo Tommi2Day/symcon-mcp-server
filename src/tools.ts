@@ -338,7 +338,7 @@ export function registerTools(server: McpServer, symcon: SymconClient) {
   // ─── DeleteScript ─────────────────────────────────────────────────────────
   server.tool(
     "symcon_script_delete",
-    "Delete a script from IP-Symcon by its script ID",
+    "Remove a Symcon script object permanently by its numeric ID",
     {
       scriptId: z.number().int().describe("The numeric ID of the script to delete"),
     },
@@ -351,5 +351,107 @@ export function registerTools(server: McpServer, symcon: SymconClient) {
     }
   );
 
-  logger.info("Registered 14 Symcon MCP tools");
+  // ─── GetScriptContent ─────────────────────────────────────────────────────
+  server.tool(
+    "symcon_get_script_content",
+    "Read the PHP source code of an existing script in IP-Symcon (read-only, no execution)",
+    { scriptId: z.number().int().describe("The numeric ID of the script") },
+    async ({ scriptId }) => {
+      logger.debug(`symcon_get_script_content: ${scriptId}`);
+      const content = await symcon.getScriptContent(scriptId);
+      return {
+        content: [{ type: "text", text: JSON.stringify({ scriptId, content }) }],
+      };
+    }
+  );
+
+  // ─── RunScriptTextEx ──────────────────────────────────────────────────────
+  const MAX_OUTPUT_CAP = 65536;
+
+  server.tool(
+    "symcon_run_script_text_ex",
+    "Execute PHP code in IP-Symcon and return a structured result with three distinct channels: " +
+      "captured stdout (output), PHP return value (returnValue), and PHP execution errors (executionError). " +
+      "A transportError field is set instead when the Symcon RPC call itself fails. " +
+      "All Symcon global variables and functions are accessible. " +
+      "Output is capped at maxOutputBytes (default 4096, max 65536) to prevent large transfers.",
+    {
+      script: z
+        .string()
+        .describe("PHP code to execute (with or without opening <?php tag)"),
+      maxOutputBytes: z
+        .number()
+        .int()
+        .min(1)
+        .max(MAX_OUTPUT_CAP)
+        .default(4096)
+        .describe("Maximum bytes of captured stdout to return (default 4096, max 65536)"),
+    },
+    async ({ script, maxOutputBytes }) => {
+      logger.debug(`symcon_run_script_text_ex: ${script.substring(0, 80)}...`);
+
+      // Strip PHP opening tag; eval() receives plain PHP code without it
+      const phpBody = script.replace(/^\s*<\?php\s*/i, "").replace(/^\s*<\?\s*/i, "");
+      // Base64-encode so no string-escaping is needed inside the wrapper
+      const encoded = Buffer.from(phpBody).toString("base64");
+
+      // eval() is required here: it runs the user code in the same PHP variable
+      // scope as the wrapper, keeping Symcon-injected globals ($IPS_SELF etc.)
+      // accessible and allowing the user's `return` value to be captured.
+      // Arbitrary PHP execution is the explicit contract of this tool (same as
+      // symcon_run_script_text); the wrapper adds structured output capture only.
+      const wrapped = [
+        "<?php",
+        "ob_start();",
+        "$__rv = null; $__err = null;",
+        "try {",
+        `  $__rv = eval(base64_decode('${encoded}'));`,
+        "} catch (\\Throwable $__t) {",
+        "  $__err = ['class' => get_class($__t), 'message' => $__t->getMessage()];",
+        "}",
+        `$__max = ${maxOutputBytes};`,
+        "$__out = ob_get_clean();",
+        "$__trunc = strlen($__out) > $__max;",
+        "if ($__trunc) { $__out = substr($__out, 0, $__max); }",
+        "echo json_encode(['output' => $__out, 'returnValue' => $__rv, 'executionError' => $__err, 'truncated' => $__trunc]);",
+      ].join("\n");
+
+      let transportError: string | null = null;
+      let parsed: {
+        output: string;
+        returnValue: unknown;
+        executionError: { class: string; message: string } | null;
+        truncated: boolean;
+      } | null = null;
+
+      try {
+        const raw = await symcon.runScriptText(wrapped);
+        try {
+          parsed = JSON.parse(raw) as typeof parsed;
+        } catch {
+          parsed = { output: raw ?? "", returnValue: null, executionError: null, truncated: false };
+        }
+      } catch (e) {
+        transportError = String(e);
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              success: transportError === null,
+              output: parsed?.output ?? "",
+              returnValue: parsed?.returnValue ?? null,
+              executionError: parsed?.executionError ?? null,
+              truncated: parsed?.truncated ?? false,
+              transportError,
+            }),
+          },
+        ],
+      };
+    }
+  );
+
+  logger.info("Registered 17 Symcon MCP tools");
 }

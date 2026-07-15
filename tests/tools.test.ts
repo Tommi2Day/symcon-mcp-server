@@ -80,6 +80,8 @@ describe("tool registration", () => {
     expect(names).toContain("symcon_script_create");
     expect(names).toContain("symcon_script_set_content");
     expect(names).toContain("symcon_script_delete");
+    expect(names).toContain("symcon_get_script_content");
+    expect(names).toContain("symcon_run_script_text_ex");
   });
 
   it("all tools have descriptions", async () => {
@@ -362,5 +364,112 @@ describe("symcon_script_delete", () => {
   it("returns success", async () => {
     const result = await callTool("symcon_script_delete", { scriptId: 99001 });
     expect(result.success).toBe(true);
+  });
+});
+
+// ─── symcon_get_script_content ────────────────────────────────────────────────
+
+describe("symcon_get_script_content", () => {
+  it("returns script content string", async () => {
+    const result = await callTool("symcon_get_script_content", { scriptId: 5001 });
+    expect(result.scriptId).toBe(5001);
+    expect(typeof result.content).toBe("string");
+    expect(result.content).toContain("<?php");
+  });
+
+  it("calls IPS_GetScriptContent RPC with correct ID", async () => {
+    await callTool("symcon_get_script_content", { scriptId: 5001 });
+    expect(mock.calls[0]?.method).toBe("IPS_GetScriptContent");
+    expect(mock.calls[0]?.params).toContain(5001);
+  });
+
+  it("returns different content for different script IDs", async () => {
+    const r1 = await callTool("symcon_get_script_content", { scriptId: 5001 });
+    const r2 = await callTool("symcon_get_script_content", { scriptId: 9999 });
+    expect(r1.content).not.toBe(r2.content);
+  });
+});
+
+// ─── symcon_run_script_text_ex ────────────────────────────────────────────────
+
+describe("symcon_run_script_text_ex", () => {
+  it("returns structured response on success", async () => {
+    mock.on("IPS_RunScriptText", () =>
+      JSON.stringify({ output: "hello world", returnValue: 42, executionError: null, truncated: false })
+    );
+    const result = await callTool("symcon_run_script_text_ex", {
+      script: "<?php echo 'hello world'; return 42;",
+    });
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("hello world");
+    expect(result.returnValue).toBe(42);
+    expect(result.executionError).toBeNull();
+    expect(result.truncated).toBe(false);
+    expect(result.transportError).toBeNull();
+  });
+
+  it("surfaces PHP execution error in executionError field", async () => {
+    mock.on("IPS_RunScriptText", () =>
+      JSON.stringify({
+        output: "",
+        returnValue: null,
+        executionError: { class: "Error", message: "Call to undefined function foo()" },
+        truncated: false,
+      })
+    );
+    const result = await callTool("symcon_run_script_text_ex", {
+      script: "<?php foo();",
+    });
+    expect(result.success).toBe(true);
+    expect(result.executionError).not.toBeNull();
+    expect(result.executionError.message).toContain("foo");
+    expect(result.transportError).toBeNull();
+  });
+
+  it("reports transport error when RPC call fails", async () => {
+    mock.on("IPS_RunScriptText", () => {
+      throw new Error("forced RPC failure");
+    });
+    const result = await callTool("symcon_run_script_text_ex", {
+      script: "<?php echo 'test';",
+    });
+    expect(result.success).toBe(false);
+    expect(result.transportError).toBeTruthy();
+    expect(result.output).toBe("");
+  });
+
+  it("embeds maxOutputBytes limit in the PHP wrapper", async () => {
+    mock.on("IPS_RunScriptText", () =>
+      JSON.stringify({ output: "", returnValue: null, executionError: null, truncated: false })
+    );
+    await callTool("symcon_run_script_text_ex", {
+      script: "<?php",
+      maxOutputBytes: 1024,
+    });
+    const call = mock.calls.find((c) => c.method === "IPS_RunScriptText");
+    expect(String(call?.params[0])).toContain("1024");
+  });
+
+  it("base64-encodes the user script inside the PHP wrapper", async () => {
+    mock.on("IPS_RunScriptText", () =>
+      JSON.stringify({ output: "", returnValue: null, executionError: null, truncated: false })
+    );
+    await callTool("symcon_run_script_text_ex", { script: "<?php $x = 1;" });
+    const call = mock.calls.find((c) => c.method === "IPS_RunScriptText");
+    const wrapped = String(call?.params[0]);
+    expect(wrapped).toContain("base64_decode(");
+    expect(wrapped).toContain("ob_start()");
+  });
+
+  it("reports truncation flag from PHP wrapper", async () => {
+    mock.on("IPS_RunScriptText", () =>
+      JSON.stringify({ output: "x".repeat(100), returnValue: null, executionError: null, truncated: true })
+    );
+    const result = await callTool("symcon_run_script_text_ex", {
+      script: "<?php echo str_repeat('x', 5000);",
+      maxOutputBytes: 100,
+    });
+    expect(result.truncated).toBe(true);
+    expect(result.output.length).toBeLessThanOrEqual(100);
   });
 });
