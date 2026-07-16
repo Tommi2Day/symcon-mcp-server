@@ -425,7 +425,7 @@ export function registerTools(server: McpServer, symcon: SymconClient) {
       } | null = null;
 
       try {
-        const raw = await symcon.runScriptText(wrapped);
+        const raw = await symcon.runScriptTextWait(wrapped);
         try {
           parsed = JSON.parse(raw) as typeof parsed;
         } catch {

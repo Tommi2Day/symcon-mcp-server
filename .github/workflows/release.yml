@@ -137,6 +137,15 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Update Docker Hub description
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: tommi2day/symcon-mcp-server
+          short-description: "Connects AI assistants to IP-Symcon via the Model Context Protocol (MCP)."
+          readme-filepath: ./README.md
+
   release:
     name: Create Release
     runs-on: ubuntu-latest
