@@ -172,7 +172,17 @@ describe("runScript", () => {
 describe("runScriptText", () => {
   it("sends PHP code and returns result", async () => {
     const result = await client.runScriptText("<?php echo 'test';");
+    expect(result).toBe(true);
+  });
+});
+
+// ─── runScriptTextWait ────────────────────────────────────────────────────────
+
+describe("runScriptTextWait", () => {
+  it("sends PHP code via IPS_RunScriptTextWait and returns captured output", async () => {
+    const result = await client.runScriptTextWait("<?php echo 'test';");
     expect(result).toBe("script_result");
+    expect(mock.calls[mock.calls.length - 1]?.method).toBe("IPS_RunScriptTextWait");
   });
 });
 

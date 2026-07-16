@@ -162,8 +162,15 @@ export class SymconClient {
     return this.rpc<string>("IPS_RunScript", [scriptId]);
   }
 
-  async runScriptText(script: string): Promise<string> {
-    return this.rpc<string>("IPS_RunScriptText", [script]);
+  async runScriptText(script: string): Promise<boolean> {
+    return this.rpc<boolean>("IPS_RunScriptText", [script]);
+  }
+
+  // IPS_RunScriptText runs asynchronously and only ever returns true/false;
+  // it cannot be used to capture output. IPS_RunScriptTextWait blocks until
+  // the script finishes and returns its captured output/return value.
+  async runScriptTextWait(script: string): Promise<string> {
+    return this.rpc<string>("IPS_RunScriptTextWait", [script]);
   }
 
   async createScript(parentId: number, name: string): Promise<number> {
