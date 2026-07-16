@@ -167,7 +167,8 @@ testing MCP tools.
 - **`IPS_GetObjectIDByName(name, parentId)`** – Find by name
 - **`IPS_GetVariable(variableId)`** – Variable metadata + type
 - **`IPS_RunScript(scriptId)`** – Execute script
-- **`IPS_RunScriptText(phpCode)`** – Execute arbitrary PHP
+- **`IPS_RunScriptText(phpCode)`** – Execute arbitrary PHP asynchronously (returns bool only, no output capture)
+- **`IPS_RunScriptTextWait(phpCode)`** – Execute arbitrary PHP synchronously, returning captured output (used by `symcon_run_script_text_ex`)
 - **`IPS_CreateScript(type, name, parentId)`** – Create script (type=0 for PHP)
 - **`IPS_SetScriptContent(scriptId, content)`** – Update script code
 - **`IPS_GetScriptContent(scriptId)`** – Read script PHP source (read-only)
