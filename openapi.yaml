@@ -536,7 +536,11 @@ components:
       type: object
       properties:
         result:
-          type: string
+          type: boolean
+          description: >-
+            IPS_RunScriptText runs asynchronously and only reports whether
+            the call was accepted; it does not capture output or a return
+            value. Use symcon_run_script_text_ex for that.
 
     # ── symcon_run_script_text_ex ─────────────────────────────────────────────
 
