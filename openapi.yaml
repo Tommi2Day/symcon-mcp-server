@@ -8,7 +8,7 @@ info:
     The `/mcp` endpoint speaks JSON-RPC 2.0 MCP. Clients discover tools via `tools/list`
     and invoke them via `tools/call`. All 17 tool argument schemas are documented under
     `components/schemas`.
-  version: 0.1.0
+  version: 0.1.1
   contact:
     name: Tommi2Day
     url: https://github.com/Tommi2Day/symcon-mcp-server
