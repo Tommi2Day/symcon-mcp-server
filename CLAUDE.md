@@ -121,7 +121,7 @@ Each tool is defined with a Zod schema for input validation and returns MCP
 
 Two tools deserve extra attention:
 - **`symcon_get_script_content`** – read-only call to `IPS_GetScriptContent`; never executes code.
-- **`symcon_run_script_text_ex`** – wraps the user's PHP in an output-buffering envelope using `eval(base64_decode(...))` so Symcon globals stay in scope; returns `{ success, output, returnValue, executionError, truncated, transportError }` without needing a marker variable.
+- **`symcon_run_script_text_ex`** – wraps the user's PHP in an output-buffering envelope using `eval(base64_decode(...))` so Symcon globals stay in scope; returns `{ success, output, returnValue, executionError, truncated, transportError }` without needing a marker variable. `success` reflects only the RPC transport, not the PHP execution — always check `executionError` separately. Output truncation uses `mb_strcut()` (not `substr()`) to avoid splitting a multi-byte UTF-8 character, which would otherwise make the wrapper's `json_encode()` fail silently; as a second safety net the wrapper also passes `JSON_INVALID_UTF8_SUBSTITUTE` and falls back to a `JsonEncodeError` `executionError` if encoding still fails.
 
 **Adding a new tool:**
 

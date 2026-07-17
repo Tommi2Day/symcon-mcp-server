@@ -373,6 +373,8 @@ export function registerTools(server: McpServer, symcon: SymconClient) {
     "Execute PHP code in IP-Symcon and return a structured result with three distinct channels: " +
       "captured stdout (output), PHP return value (returnValue), and PHP execution errors (executionError). " +
       "A transportError field is set instead when the Symcon RPC call itself fails. " +
+      "Note: success only reflects whether the RPC transport succeeded, not whether the PHP code ran " +
+      "without error — always check executionError separately, even when success is true. " +
       "All Symcon global variables and functions are accessible. " +
       "Output is capped at maxOutputBytes (default 4096, max 65536) to prevent large transfers.",
     {
@@ -412,8 +414,16 @@ export function registerTools(server: McpServer, symcon: SymconClient) {
         `$__max = ${maxOutputBytes};`,
         "$__out = ob_get_clean();",
         "$__trunc = strlen($__out) > $__max;",
-        "if ($__trunc) { $__out = substr($__out, 0, $__max); }",
-        "echo json_encode(['output' => $__out, 'returnValue' => $__rv, 'executionError' => $__err, 'truncated' => $__trunc]);",
+        // mb_strcut() cuts at a byte offset without splitting a multi-byte UTF-8
+        // character, unlike substr(); a split character would make json_encode()
+        // fail (returning false) and silently produce an empty response.
+        "if ($__trunc) { $__out = mb_strcut($__out, 0, $__max); }",
+        "$__payload = ['output' => $__out, 'returnValue' => $__rv, 'executionError' => $__err, 'truncated' => $__trunc];",
+        "$__json = json_encode($__payload, JSON_INVALID_UTF8_SUBSTITUTE);",
+        "if ($__json === false) {",
+        "  $__json = json_encode(['output' => '', 'returnValue' => null, 'executionError' => ['class' => 'JsonEncodeError', 'message' => json_last_error_msg()], 'truncated' => $__trunc]);",
+        "}",
+        "echo $__json;",
       ].join("\n");
 
       let transportError: string | null = null;

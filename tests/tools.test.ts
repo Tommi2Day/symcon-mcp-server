@@ -461,6 +461,35 @@ describe("symcon_run_script_text_ex", () => {
     expect(wrapped).toContain("ob_start()");
   });
 
+  it("uses mb_strcut (not substr) for truncation to stay UTF-8 safe", async () => {
+    mock.on("IPS_RunScriptTextWait", () =>
+      JSON.stringify({ output: "", returnValue: null, executionError: null, truncated: false })
+    );
+    await callTool("symcon_run_script_text_ex", { script: "<?php echo 'ÄÄÄ';" });
+    const call = mock.calls.find((c) => c.method === "IPS_RunScriptTextWait");
+    const wrapped = String(call?.params[0]);
+    expect(wrapped).toContain("mb_strcut(");
+    expect(wrapped).not.toMatch(/[^_]substr\(\$__out/);
+  });
+
+  it("falls back to a JsonEncodeError payload if json_encode() ever fails in the wrapper", async () => {
+    mock.on("IPS_RunScriptTextWait", () =>
+      JSON.stringify({
+        output: "",
+        returnValue: null,
+        executionError: { class: "JsonEncodeError", message: "Malformed UTF-8 characters" },
+        truncated: true,
+      })
+    );
+    const result = await callTool("symcon_run_script_text_ex", {
+      script: "<?php echo 'ÄÄÄ';",
+      maxOutputBytes: 5,
+    });
+    expect(result.success).toBe(true);
+    expect(result.executionError?.class).toBe("JsonEncodeError");
+    expect(result.output).toBe("");
+  });
+
   it("reports truncation flag from PHP wrapper", async () => {
     mock.on("IPS_RunScriptTextWait", () =>
       JSON.stringify({ output: "x".repeat(100), returnValue: null, executionError: null, truncated: true })

@@ -575,21 +575,29 @@ components:
           type: boolean
           description: >-
             true when the Symcon RPC call itself succeeded;
-            false indicates a transport-level failure
+            false indicates a transport-level failure.
+            This does NOT mean the PHP code ran without error — check
+            executionError separately even when success is true.
         output:
           type: string
-          description: Captured stdout (echo/print output), capped at maxOutputBytes
+          description: >-
+            Captured stdout (echo/print output), capped at maxOutputBytes.
+            Truncation is UTF-8 safe (never splits a multi-byte character).
         returnValue:
           description: Value returned by the PHP script's return statement, or null
         executionError:
-          description: PHP exception or error caught during execution, or null
+          description: >-
+            PHP exception or error caught during execution, or null.
+            class is usually the PHP exception's class name, but may also be
+            the internal value JsonEncodeError if the wrapper's result could
+            not be JSON-encoded (e.g. invalid UTF-8 byte sequence in output).
           oneOf:
             - type: 'null'
             - type: object
               properties:
                 class:
                   type: string
-                  description: PHP exception class name
+                  description: PHP exception class name, or JsonEncodeError
                 message:
                   type: string
         truncated:
