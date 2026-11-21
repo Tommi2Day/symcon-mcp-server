@@ -117,4 +117,4 @@ More options and the German README: see the [full README](https://github.com/Tom
 - Limits: 100 concurrent MCP sessions (idle sessions expire after 30 minutes), 1 MB request bodies, 30 s timeout and at most 8 concurrent calls to Symcon
 - The default `http://` Symcon URL sends credentials unencrypted — use HTTPS on untrusted networks
 
-Details: [Security](https://github.com/Tommi2Day/symcon-mcp-server#security) · License and issues: [GitHub](https://github.com/Tommi2Day/symcon-mcp-server)
+Details: [Security](https://github.com/Tommi2Day/symcon-mcp-server#security) · License (Apache 2.0) and issues: [GitHub](https://github.com/Tommi2Day/symcon-mcp-server)

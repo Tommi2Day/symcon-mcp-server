@@ -17,6 +17,10 @@ First stable release, focused on securing the server and testing it against a re
 - **Default bind address is `127.0.0.1`** (configurable via `MCP_HOST`). The Docker image sets `MCP_HOST=0.0.0.0`, so containers are unaffected.
 - **Browser requests are rejected** (HTTP 403) unless their `Origin` is listed in `MCP_ALLOWED_ORIGINS`. Non-browser MCP clients send no `Origin` header and are unaffected.
 
+### Changed
+
+- License changed from MIT to Apache License 2.0 (added `LICENSE` file, `license` field in `package.json`, updated docs, OpenAPI spec and image label).
+
 ### Added
 
 - `MCP_ALLOW_NO_AUTH`, `MCP_HOST`, `MCP_ALLOWED_ORIGINS` and `MCP_RATE_LIMIT` environment variables.

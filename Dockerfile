@@ -22,6 +22,7 @@ LABEL maintainer="your-email@example.com"
 LABEL description="Docker-based MCP Server for IP-Symcon"
 LABEL org.opencontainers.image.title="symcon-mcp-server"
 LABEL org.opencontainers.image.version="1.0.0"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
 LABEL org.opencontainers.image.source="https://github.com/your-org/symcon-mcp-server"
 
 # Security: the runtime only needs `node`; drop npm/npx/corepack, whose bundled

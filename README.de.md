@@ -440,4 +440,4 @@ Das Repository verwendet zwei primäre GitHub Actions-Workflows:
 
 ## Lizenz
 
-MIT
+Apache License 2.0 – see [LICENSE](LICENSE).
