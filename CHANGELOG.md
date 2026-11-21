@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Release images are also published to GitHub Container Registry as `ghcr.io/tommi2day/symcon-mcp-server`.
 - Docker image scan with Trivy (HIGH/CRITICAL, fixable only) in CI and before pushing in the release workflow, plus a smoke test that the server is reachable on `127.0.0.1` inside the container.
 
 ### Changed

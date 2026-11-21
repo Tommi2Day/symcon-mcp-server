@@ -51,6 +51,12 @@ Das Image ist auf Docker Hub verfügbar:
 docker pull tommi2day/symcon-mcp-server:latest
 ```
 
+Dasselbe Image wird auch in der GitHub Container Registry veröffentlicht:
+
+```bash
+docker pull ghcr.io/tommi2day/symcon-mcp-server:latest
+```
+
 ### Schnellstart über Hub (HTTP)
 
 ```bash
@@ -406,7 +412,7 @@ Das Repository verwendet zwei primäre GitHub Actions-Workflows:
 **`Release` (`release.yml`)** – wird durch ein Semver-Tag oder manuelles Auslösen gestartet:
 1. **Bump version** (nur manuell): Aktualisiert `package.json` und `openapi.yaml`, committet und pusht auf `main`.
 2. **Lint & Test**: Führt Linting, Unit-Tests mit Abdeckung und Integrationstests aus.
-3. **Build & Push**: Baut das Image, scannt es mit Trivy (ein fehlgeschlagener Scan stoppt das Release vor dem Push) und pusht es dann zu Docker Hub (`tommi2day/symcon-mcp-server`).
+3. **Build & Push**: Baut das Image, scannt es mit Trivy (ein fehlgeschlagener Scan stoppt das Release vor dem Push) und pusht es dann zu Docker Hub (`tommi2day/symcon-mcp-server`) und zur GitHub Container Registry (`ghcr.io/tommi2day/symcon-mcp-server`).
 4. **Create Release**: Erstellt ein GitHub-Tag (falls manuell) und ein GitHub-Release mit automatisch generierten Notizen.
 
 ---

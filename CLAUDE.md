@@ -234,7 +234,7 @@ ci.yml:
 
 release.yml:
   triggered by semver tag OR manual dispatch
-  → (bump version, manual only) → lint → test → build image → Trivy scan → push to Docker Hub → GitHub Release
+  → (bump version, manual only) → lint → test → build image → Trivy scan → push to Docker Hub + GHCR → GitHub Release
 ```
 
 **Required GitHub Secrets:**
@@ -284,4 +284,6 @@ a working Symcon connection.
 | `latest` | Latest build from main |
 | `sha-abc1234` | Specific commit |
 
-Images are published to Docker Hub as `tommi2day/symcon-mcp-server`.
+Images are published to:
+- `tommi2day/symcon-mcp-server` (Docker Hub)
+- `ghcr.io/tommi2day/symcon-mcp-server` (GitHub Container Registry)
