@@ -31,7 +31,7 @@ First stable release, focused on securing the server and testing it against a re
 - 30 second timeout for requests to Symcon and a cap of 8 concurrent Symcon calls (also bounds `symcon_snapshot_variables`).
 - Integration tests against the real `symcon/symcon` container covering all 17 MCP tools and the full HTTP server end-to-end (Streamable HTTP client, `/health`, `/info`, auth).
 - `DOCKERHUB.md` and a dedicated workflow that publishes it as the Docker Hub description (replaces the step in the release workflow).
-- Release images are also published to GitHub Container Registry as `ghcr.io/tommi2day/symcon-mcp-server`.
+- Release images are also published to GitHub Container Registry as `ghcr.io/tommi2day/symcon-mcp-server`. The release workflow verifies with an anonymous pull that the GHCR package is public and writes the digest and image references to the job summary.
 - Docker image scan with Trivy (HIGH/CRITICAL, fixable only) in CI and before pushing in the release workflow, plus a smoke test that the server is reachable on `127.0.0.1` inside the container.
 - Security section in `README.md` / `README.de.md`.
 - This changelog.

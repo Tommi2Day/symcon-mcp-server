@@ -412,7 +412,7 @@ The repository uses two primary GitHub Actions workflows:
 **`Release` (`release.yml`)** – triggered by a semver tag or manual dispatch:
 1. **Bump version** (Manual only): Updates `package.json` and `openapi.yaml`, commits and pushes to `main`.
 2. **Lint & Test**: Runs lint, unit tests with coverage, and integration tests.
-3. **Build & Push**: Builds the image, scans it with Trivy (a failing scan stops the release before anything is pushed), then pushes it to Docker Hub (`tommi2day/symcon-mcp-server`) and GitHub Container Registry (`ghcr.io/tommi2day/symcon-mcp-server`).
+3. **Build & Push**: Builds the image, scans it with Trivy (a failing scan stops the release before anything is pushed), then pushes it to Docker Hub (`tommi2day/symcon-mcp-server`) and GitHub Container Registry (`ghcr.io/tommi2day/symcon-mcp-server`). Afterwards it verifies with an anonymous pull that the GHCR package is public (a new GHCR package starts private and must be made public once in the package settings; the step fails until then) and writes the image digest and references to the job summary.
 4. **Create Release**: Creates a GitHub tag (if manual) and a GitHub Release with auto-generated notes.
 
 **`Docker Hub Description` (`dockerhub-description.yml`)** – runs when `DOCKERHUB.md` changes on `main` (or manually) and publishes it, together with the short description, as the Docker Hub overview. `DOCKERHUB.md` is a compact version of this README; keep it in sync when options or tools change.

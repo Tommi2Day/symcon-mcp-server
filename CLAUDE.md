@@ -235,7 +235,7 @@ ci.yml:
 
 release.yml:
   triggered by semver tag OR manual dispatch
-  → (bump version, manual only) → lint → test → build image → Trivy scan → push to Docker Hub + GHCR → GitHub Release
+  → (bump version, manual only) → lint → test → build image → Trivy scan → push to Docker Hub + GHCR → verify GHCR package is public → GitHub Release
 ```
 
 **Required GitHub Secrets:**
@@ -268,6 +268,10 @@ The Docker Hub overview comes from `DOCKERHUB.md` (compact README) via
 `.github/workflows/dockerhub-description.yml`, which runs on pushes that change
 that file or manually; the release workflow does not touch it. Keep it in sync
 with `README.md` when env vars or tools change.
+
+A new GHCR package starts private and GitHub has no API to change that: make it
+public once (profile → Packages → symcon-mcp-server → Package settings), otherwise
+the release workflow's "Verify the GHCR image is public" step fails.
 
 Before releasing: move the `CHANGELOG.md` entry from *Unreleased* to the version
 and date. The Trivy action in `ci.yml`/`release.yml` is pinned to a commit SHA;
