@@ -42,7 +42,12 @@ paths:
   /info:
     get:
       summary: Server Info
-      description: Returns server version and configuration (with sensitive data masked)
+      description: >-
+        Returns server version, an allowlisted subset of the configuration (secrets masked)
+        and the Symcon version. Requires authentication when MCP_AUTH_TOKEN is set.
+      security:
+        - bearerAuth: []
+        - apiKeyHeader: []
       responses:
         '200':
           description: Server information
@@ -50,6 +55,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/InfoResponse'
+        '401':
+          description: Unauthorized – missing or invalid MCP_AUTH_TOKEN
 
   /mcp:
     post:
@@ -75,6 +82,10 @@ paths:
                 $ref: '#/components/schemas/McpResponse'
         '401':
           description: Unauthorized – missing or invalid MCP_AUTH_TOKEN
+        '403':
+          description: Origin not allowed (see MCP_ALLOWED_ORIGINS)
+        '429':
+          description: Rate limit exceeded (see MCP_RATE_LIMIT)
 
   /sse:
     get:
@@ -214,8 +225,6 @@ components:
         symcon:
           type: object
           properties:
-            url:
-              type: string
             status:
               type: string
               enum: [ok, error]

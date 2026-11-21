@@ -78,7 +78,7 @@ services:
       # ── MCP Server ───────────────────────────────────────────────────────
       MCP_PORT:       ${MCP_PORT:-4096}
       MCP_TRANSPORT:  ${MCP_TRANSPORT:-streamable}   # streamable | sse
-      MCP_AUTH_TOKEN: ${MCP_AUTH_TOKEN:-}            # leave empty to disable auth
+      MCP_AUTH_TOKEN: ${MCP_AUTH_TOKEN:-}            # required; or set MCP_ALLOW_NO_AUTH=true to disable auth
       LOG_LEVEL:      ${LOG_LEVEL:-info}             # debug | info | warn | error
 
       # ── IP-Symcon Connection ─────────────────────────────────────────────

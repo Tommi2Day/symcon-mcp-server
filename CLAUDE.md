@@ -46,7 +46,7 @@ tests/
   symcon-client.test.ts  Unit tests for SymconClient
   tools.test.ts          Unit tests for all MCP tools (via InMemoryTransport)
   http-server.test.ts    HTTP layer tests: /health (status & error), auth, /mcp
-  info.test.ts           Unit tests for /info endpoint (unauthenticated)
+  info.test.ts           Unit tests for /info endpoint (requires auth, allowlisted config)
   integration.test.ts    Integration tests against real Symcon container
 
 scripts/
@@ -196,7 +196,11 @@ Variable types: `0=Boolean`, `1=Integer`, `2=Float`, `3=String`
 |----------|---------|-------|
 | `MCP_PORT` | `4096` | Container port |
 | `MCP_TRANSPORT` | `streamable` | `streamable` or `sse` |
-| `MCP_AUTH_TOKEN` | *(empty)* | Empty = no auth |
+| `MCP_AUTH_TOKEN` | *(empty)* | **Required**: server exits at startup if empty, unless `MCP_ALLOW_NO_AUTH=true` (stdio exempt) |
+| `MCP_ALLOW_NO_AUTH` | `false` | Explicit opt-out of authentication |
+| `MCP_HOST` | `127.0.0.1` | Bind address (`0.0.0.0` in the Docker image) |
+| `MCP_ALLOWED_ORIGINS` | *(empty)* | Comma-separated browser origins allowed on `/mcp`, `/sse`, `/messages`; requests with other `Origin` get 403 |
+| `MCP_RATE_LIMIT` | `300` | Requests/min per IP, `0` = off |
 | `LOG_LEVEL` | `info` | `debug`/`info`/`warn`/`error` |
 | `SYMCON_API_URL` | `http://host.docker.internal:3777/api/` | |
 | `SYMCON_API_USER` | *(empty)* | Symcon license email (required) |
@@ -211,11 +215,11 @@ Variable types: `0=Boolean`, `1=Integer`, `2=Float`, `3=String`
 Unit tests (fast, no external deps)
   ├── symcon-client.test.ts  → MockSymconServer (in-process HTTP)
   ├── tools.test.ts          → McpServer + InMemoryTransport + MockSymconServer
-  ├── info.test.ts           → GET /info (unauthenticated, masking, Symcon version)
+  ├── info.test.ts           → GET /info (auth required, allowlist, masking, Symcon version)
   └── http-server.test.ts    → spawns real Express server process
 
 Integration tests (Docker required)
-  └── integration.test.ts    → real symcon/symcon-server container
+  └── integration.test.ts    → real symcon/symcon container: client, all tools, full HTTP server
                                (auto-started locally, service in CI)
 ```
 

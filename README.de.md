@@ -30,7 +30,11 @@ Stellt die Symcon JSON-RPC-API als MCP-Tools zur Verfügung, damit KI-Assistente
 | `MCP_PORT` | `4096` | Port, auf dem der Server lauscht |
 | `MCP_HOST_PORT` | `4096` | Docker-Host-Port |
 | `MCP_TRANSPORT` | `streamable` | `streamable`, `sse` oder `stdio` |
-| `MCP_AUTH_TOKEN` | *(leer)* | Bearer-Token; [Wie erstellen?](#token-authentifizierung) |
+| `MCP_AUTH_TOKEN` | *(erforderlich)* | Bearer-Token; [Wie erstellen?](#token-authentifizierung) |
+| `MCP_ALLOW_NO_AUTH` | `false` | `true` erlaubt den Start ohne Token (nicht empfohlen) |
+| `MCP_HOST` | `127.0.0.1` (`0.0.0.0` in Docker) | Bind-Adresse |
+| `MCP_ALLOWED_ORIGINS` | *(leer)* | Kommagetrennte Browser-Origins, die `/mcp` aufrufen dürfen |
+| `MCP_RATE_LIMIT` | `300` | Max. Anfragen pro Minute und IP (`0` = aus) |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
 | `SYMCON_API_URL` | `http://host.docker.internal:3777/api/` | Symcon [JSON-RPC-Endpunkt](https://www.symcon.de/service/dokumentation/entwicklerbereich/datenaustausch/) |
 | `SYMCON_API_USER` | *(leer)* | Symcon Lizenz-Benutzername (erforderlich) |
@@ -340,7 +344,7 @@ Fragen Sie den KI-Assistenten:
 |----------|--------|-------------|
 | `/` | GET | Server-Info und verfügbare Endpunkte |
 | `/health` | GET | Health-Check (Symcon-Status, Uptime, Version) |
-| `/info` | GET | Detaillierte Serverkonfiguration und Symcon-Version |
+| `/info` | GET | Serverkonfiguration (Allowlist, Geheimnisse maskiert) und Symcon-Version; erfordert Auth |
 | `/mcp` | POST/GET/DELETE | MCP Streamable HTTP-Transport |
 | `/sse` | GET | MCP SSE-Transport (wenn `MCP_TRANSPORT=sse`) |
 | `/messages` | POST | SSE-Nachrichten-Handler |
@@ -382,7 +386,7 @@ npm run test:all
 | Unit: MCP-Tools | `tests/tools.test.ts` | MockSymconServer + InMemoryTransport |
 | Unit: HTTP-Server | `tests/http-server.test.ts` | MockSymconServer + gestarteter Express-Server |
 | Unit: Info-Endpunkt | `tests/info.test.ts` | MockSymconServer + gestarteter Express-Server (Auth, Maskierung & Symcon-Version) |
-| Integration | `tests/integration.test.ts` | Echter `symcon/symcon-server` Docker-Container |
+| Integration | `tests/integration.test.ts` | Echter `symcon/symcon` Docker-Container: Symcon-Client, alle MCP-Tools und kompletter HTTP-Server (Ende-zu-Ende) |
 
 ---
 
@@ -404,6 +408,16 @@ Das Repository verwendet zwei primäre GitHub Actions-Workflows:
 4. **Create Release**: Erstellt ein GitHub-Tag (falls manuell) und ein GitHub-Release mit automatisch generierten Notizen.
 
 ---
+
+## Sicherheit
+
+- **Authentifizierung ist Pflicht.** Der Server beendet sich beim Start, wenn `MCP_AUTH_TOKEN` leer ist, außer `MCP_ALLOW_NO_AUTH=true` ist gesetzt (stdio ausgenommen). Die Tools können beliebigen PHP-Code in Symcon ausführen – ein offener Server bedeutet Remote-Code-Ausführung auf Ihrem Smart-Home-Host.
+- **Bind-Adresse:** `MCP_HOST` ist standardmäßig `127.0.0.1`; das Docker-Image setzt `0.0.0.0`. Beschränken Sie den veröffentlichten Port per Firewall oder Reverse-Proxy.
+- **Browser-Origins:** Anfragen mit `Origin`-Header werden abgelehnt (403), sofern nicht in `MCP_ALLOWED_ORIGINS` aufgeführt (Schutz vor DNS-Rebinding). Nicht-Browser-MCP-Clients sind nicht betroffen.
+- **Rate-Limit:** `MCP_RATE_LIMIT` Anfragen pro Minute und IP (Standard 300, `0` deaktiviert). Request-Bodys sind auf 1 MB begrenzt; maximal 100 MCP-Sessions, inaktive Sessions laufen nach 30 Minuten ab.
+- **Symcon-Aufrufe** haben ein Timeout von 30 s und laufen höchstens 8 gleichzeitig.
+- **`/health`** ist öffentlich (für Docker-Healthchecks), enthält aber keine URLs oder Fehlerdetails. **`/info`** erfordert das Token und liefert keine fremden Umgebungsvariablen.
+- **TLS:** Die Standard-URL `http://` überträgt Zugangsdaten unverschlüsselt; nutzen Sie in unsicheren Netzen HTTPS. `SYMCON_TLS_VERIFY=false` deaktiviert die Zertifikatsprüfung und ermöglicht Man-in-the-Middle-Angriffe.
 
 ## Produktions-Checkliste
 
