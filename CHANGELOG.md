@@ -11,8 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Docker health check always failed in 1.0.0: `localhost` resolves to `::1` inside the container, but the server now binds to the IPv4 address `0.0.0.0`. The health check in the `Dockerfile` and `docker-compose.yml` now uses `127.0.0.1`.
 
+### Added
+
+- Docker image scan with Trivy (HIGH/CRITICAL, fixable only) in CI and before pushing in the release workflow, plus a smoke test that the server is reachable on `127.0.0.1` inside the container.
+
 ### Changed
 
+- The runtime image no longer contains npm, npx and corepack, removing their bundled dependencies (`brace-expansion`, `undici`) that the scan flagged.
 - `npm version` hook only stages `package.json`, `package-lock.json` and `openapi.yaml` instead of `git add -A`.
 - Updated `vitest` to 4.1.12 (dev dependency advisories); release workflow now runs Build & Push and Create Release on tag pushes.
 

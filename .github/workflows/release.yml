@@ -130,6 +130,24 @@ jobs:
             # always: :sha-<short>
             type=sha,format=short
 
+      - name: Build image for scanning
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          tags: symcon-mcp-server:scan
+          cache-from: type=gha
+
+      # Pinned to the commit of v0.36.0. A failing scan stops the release
+      # before anything is pushed.
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        with:
+          image-ref: symcon-mcp-server:scan
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
       - name: Build and push
         uses: docker/build-push-action@v7
         with:
