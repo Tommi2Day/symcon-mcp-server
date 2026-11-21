@@ -74,6 +74,7 @@ afterAll(async () => {
   await mock.stop();
 });
 
+const auth = { Authorization: `Bearer ${AUTH_TOKEN}` };
 const base = () => `http://127.0.0.1:${serverPort}`;
 
 interface InfoResponse {
@@ -86,8 +87,20 @@ interface InfoResponse {
 }
 
 describe("GET /info", () => {
-  it("returns 200 and correct structure without Authorization", async () => {
+  it("returns 401 without Authorization", async () => {
     const res = await fetch(`${base()}/info`);
+    expect(res.status).toBe(401);
+  });
+
+  it("does not leak unrelated environment variables", async () => {
+    const res = await fetch(`${base()}/info`, { headers: auth });
+    const body = await res.json() as InfoResponse;
+    expect(body.config).not.toHaveProperty("PATH");
+    expect(Object.keys(body.config)).not.toContain("HOME");
+  });
+
+  it("returns 200 and correct structure with Authorization", async () => {
+    const res = await fetch(`${base()}/info`, { headers: auth });
     expect(res.status).toBe(200);
     const body = await res.json() as InfoResponse;
     
@@ -99,7 +112,7 @@ describe("GET /info", () => {
   });
 
   it("masks sensitive configuration values", async () => {
-    const res = await fetch(`${base()}/info`);
+    const res = await fetch(`${base()}/info`, { headers: auth });
     const body = await res.json() as InfoResponse;
     
     expect(body.config.SYMCON_API_PASSWORD).toBe("********");
@@ -111,7 +124,7 @@ describe("GET /info", () => {
     // Stop the mock server temporarily
     await mock.stop();
     
-    const res = await fetch(`${base()}/info`);
+    const res = await fetch(`${base()}/info`, { headers: auth });
     const body = await res.json() as InfoResponse;
     
     expect(body.symcon.version).toBeUndefined();

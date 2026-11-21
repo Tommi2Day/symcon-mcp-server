@@ -95,9 +95,9 @@ describe("GET /health", () => {
 
   it("includes symcon reachability info", async () => {
     const res = await fetch(`${base()}/health`);
-    const body = await res.json() as { symcon: { status: string; url: string } };
+    const body = await res.json() as { symcon: { status: string; url?: string } };
     expect(body.symcon.status).toBe("ok");
-    expect(body.symcon.url).toBe(symconUrl);
+    expect(body.symcon.url).toBeUndefined();
   });
 
   it("includes latencyMs", async () => {
@@ -126,6 +126,7 @@ describe("GET /health", () => {
       MCP_PORT: String(badPort),
       SYMCON_API_URL: "http://127.0.0.1:1/api/",
       MCP_AUTH_TOKEN: "",
+      MCP_ALLOW_NO_AUTH: "true",
       LOG_LEVEL: "error",
     };
     const entrypoint = resolve(__dirname, "../src/index.ts");
@@ -234,5 +235,38 @@ describe("POST /mcp auth", () => {
       body: "{}",
     });
     expect(res.status).toBe(401);
+  });
+});
+
+// ─── Hardening ────────────────────────────────────────────────────────────────
+
+describe("hardening", () => {
+  it("refuses to start without auth token unless MCP_ALLOW_NO_AUTH=true", async () => {
+    const entrypoint = resolve(__dirname, "../src/index.ts");
+    const proc = spawn("node", ["--import", "tsx/esm", entrypoint], {
+      env: {
+        ...process.env,
+        MCP_PORT: String(15000 + Math.floor(Math.random() * 500)),
+        MCP_AUTH_TOKEN: "",
+        MCP_ALLOW_NO_AUTH: "",
+        LOG_LEVEL: "error",
+      },
+      stdio: "pipe",
+    });
+    const code = await new Promise<number | null>((r) => proc.once("exit", r));
+    expect(code).toBe(1);
+  });
+
+  it("rejects browser requests with a foreign Origin", async () => {
+    const res = await fetch(`${base()}/mcp`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${AUTH_TOKEN}`,
+        Origin: "http://evil.example",
+      },
+      body: "{}",
+    });
+    expect(res.status).toBe(403);
   });
 });

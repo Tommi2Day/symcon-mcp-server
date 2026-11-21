@@ -41,6 +41,7 @@ USER mcpuser
 # Environment defaults (override via docker-compose or -e flags)
 ENV NODE_ENV=production \
     MCP_PORT=4096 \
+    MCP_HOST=0.0.0.0 \
     MCP_TRANSPORT=streamable \
     LOG_LEVEL=info \
     SYMCON_API_URL=http://host.docker.internal:3777/api/ \
