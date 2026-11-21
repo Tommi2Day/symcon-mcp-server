@@ -58,6 +58,7 @@ scripts/
 
 .github/workflows/
   ci.yml          Audit → Lint → Unit tests → Integration tests → Docker image scan
+  dockerhub-description.yml  Publishes DOCKERHUB.md as Docker Hub overview
   release.yml     Tag/manual dispatch → bump → lint → test → Docker push → GH Release
 ```
 
@@ -262,6 +263,11 @@ The `npm version` command calls the `scripts/bump-version.mjs` lifecycle hook
 via `"version"` in `package.json`. It syncs the version into `openapi.yaml`
 using a regex replace (no YAML library required) and stages only
 `package.json`, `package-lock.json` and `openapi.yaml` (never `git add -A`).
+
+The Docker Hub overview comes from `DOCKERHUB.md` (compact README) via
+`.github/workflows/dockerhub-description.yml`, which runs on pushes that change
+that file or manually; the release workflow does not touch it. Keep it in sync
+with `README.md` when env vars or tools change.
 
 Before releasing: move the `CHANGELOG.md` entry from *Unreleased* to the version
 and date. The Trivy action in `ci.yml`/`release.yml` is pinned to a commit SHA;

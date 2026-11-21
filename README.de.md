@@ -415,6 +415,8 @@ Das Repository verwendet zwei primäre GitHub Actions-Workflows:
 3. **Build & Push**: Baut das Image, scannt es mit Trivy (ein fehlgeschlagener Scan stoppt das Release vor dem Push) und pusht es dann zu Docker Hub (`tommi2day/symcon-mcp-server`) und zur GitHub Container Registry (`ghcr.io/tommi2day/symcon-mcp-server`).
 4. **Create Release**: Erstellt ein GitHub-Tag (falls manuell) und ein GitHub-Release mit automatisch generierten Notizen.
 
+**`Docker Hub Description` (`dockerhub-description.yml`)** – läuft, wenn sich `DOCKERHUB.md` auf `main` ändert (oder manuell), und veröffentlicht die Datei samt Kurzbeschreibung als Docker-Hub-Übersicht. `DOCKERHUB.md` ist eine kompakte Version dieses README; bei Änderungen an Optionen oder Tools bitte synchron halten.
+
 ---
 
 ## Sicherheit
