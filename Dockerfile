@@ -24,6 +24,10 @@ LABEL org.opencontainers.image.title="symcon-mcp-server"
 LABEL org.opencontainers.image.version="1.0.0"
 LABEL org.opencontainers.image.source="https://github.com/your-org/symcon-mcp-server"
 
+# Security: the runtime only needs `node`; drop npm/npx/corepack, whose bundled
+# dependencies are a recurring source of scanner findings.
+RUN rm -rf /usr/local/lib/node_modules /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack /opt/yarn* /usr/local/bin/yarn*
+
 # Security: run as non-root
 RUN addgroup -S mcpuser && adduser -S mcpuser -G mcpuser
 
