@@ -93,7 +93,7 @@ services:
       - "host.docker.internal:host-gateway"
 
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:${MCP_PORT:-4096}/health"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:${MCP_PORT:-4096}/health"]
       interval: 30s
       timeout: 10s
       retries: 3

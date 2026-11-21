@@ -5,6 +5,17 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - Unreleased
+
+### Fixed
+
+- Docker health check always failed in 1.0.0: `localhost` resolves to `::1` inside the container, but the server now binds to the IPv4 address `0.0.0.0`. The health check in the `Dockerfile` and `docker-compose.yml` now uses `127.0.0.1`.
+
+### Changed
+
+- `npm version` hook only stages `package.json`, `package-lock.json` and `openapi.yaml` instead of `git add -A`.
+- Updated `vitest` to 4.1.12 (dev dependency advisories); release workflow now runs Build & Push and Create Release on tag pushes.
+
 ## [1.0.0] - 2026-11-21
 
 First stable release, focused on securing the server and testing it against a real IP-Symcon instance.
@@ -73,6 +84,7 @@ First stable release, focused on securing the server and testing it against a re
 
 Initial public releases.
 
+[1.0.1]: https://github.com/Tommi2Day/symcon-mcp-server/compare/1.0.0...1.0.1
 [1.0.0]: https://github.com/Tommi2Day/symcon-mcp-server/compare/0.1.2...1.0.0
 [0.1.2]: https://github.com/Tommi2Day/symcon-mcp-server/compare/0.1.1...0.1.2
 [0.1.1]: https://github.com/Tommi2Day/symcon-mcp-server/compare/0.1.0...0.1.1
