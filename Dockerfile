@@ -43,7 +43,9 @@ COPY package.json ./
 RUN chown -R mcpuser:mcpuser /app
 USER mcpuser
 
-# Environment defaults (override via docker-compose or -e flags)
+# Environment defaults (override via docker-compose or -e flags).
+# Secrets (MCP_AUTH_TOKEN, SYMCON_API_PASSWORD) are deliberately not set here:
+# pass them at runtime with -e, env_file or secrets.
 ENV NODE_ENV=production \
     MCP_PORT=4096 \
     MCP_HOST=0.0.0.0 \
@@ -51,9 +53,7 @@ ENV NODE_ENV=production \
     LOG_LEVEL=info \
     SYMCON_API_URL=http://host.docker.internal:3777/api/ \
     SYMCON_API_USER="" \
-    SYMCON_API_PASSWORD="" \
-    SYMCON_TLS_VERIFY=true \
-    MCP_AUTH_TOKEN=""
+    SYMCON_TLS_VERIFY=true
 
 EXPOSE 4096
 
