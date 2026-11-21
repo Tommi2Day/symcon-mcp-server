@@ -395,16 +395,18 @@ npm run test:all
 Das Repository verwendet zwei primäre GitHub Actions-Workflows:
 
 **`CI` (`ci.yml`)** – wird bei jedem Push und Pull-Request ausgeführt:
-1. **Lint**: ESLint-Prüfungen.
-2. **Test**: Unit-Tests auf Node 24.
-3. **Coverage**: Berechnung der Unit-Test-Abdeckung.
-4. **Integration Tests**: Führt Integrationstests gegen einen echten Symcon-Docker-Service-Container aus.
-5. **Report**: Lädt die Abdeckungsergebnisse zu Codecov hoch.
+1. **Audit**: `npm audit` (Produktions- und Dev-Abhängigkeiten).
+2. **Lint**: ESLint-Prüfungen.
+3. **Test**: Unit-Tests auf Node 24.
+4. **Coverage**: Berechnung der Unit-Test-Abdeckung.
+5. **Integration Tests**: Führt Integrationstests gegen einen echten Symcon-Docker-Service-Container aus.
+6. **Docker Image Scan**: Baut das Image, prüft per Smoke-Test, dass der Server im Container erreichbar ist, und scannt es mit [Trivy](https://trivy.dev/) (schlägt bei behebbaren HIGH/CRITICAL-Funden fehl).
+7. **Report**: Lädt die Abdeckungsergebnisse zu Codecov hoch.
 
 **`Release` (`release.yml`)** – wird durch ein Semver-Tag oder manuelles Auslösen gestartet:
 1. **Bump version** (nur manuell): Aktualisiert `package.json` und `openapi.yaml`, committet und pusht auf `main`.
 2. **Lint & Test**: Führt Linting, Unit-Tests mit Abdeckung und Integrationstests aus.
-3. **Build & Push**: Multi-Arch-Docker-Build und Push zu Docker Hub (`tommi2day/symcon-mcp-server`).
+3. **Build & Push**: Baut das Image, scannt es mit Trivy (ein fehlgeschlagener Scan stoppt das Release vor dem Push) und pusht es dann zu Docker Hub (`tommi2day/symcon-mcp-server`).
 4. **Create Release**: Erstellt ein GitHub-Tag (falls manuell) und ein GitHub-Release mit automatisch generierten Notizen.
 
 ---

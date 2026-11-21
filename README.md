@@ -395,16 +395,18 @@ npm run test:all
 The repository uses two primary GitHub Actions workflows:
 
 **`CI` (`ci.yml`)** – runs on every push and pull request:
-1. **Lint**: ESLint checks.
-2. **Test**: Unit tests on Node 24.
-3. **Coverage**: Unit test coverage calculation.
-4. **Integration Tests**: Runs integration tests against a real Symcon Docker service container.
-5. **Report**: Uploads coverage results to Codecov.
+1. **Audit**: `npm audit` (production and dev dependencies).
+2. **Lint**: ESLint checks.
+3. **Test**: Unit tests on Node 24.
+4. **Coverage**: Unit test coverage calculation.
+5. **Integration Tests**: Runs integration tests against a real Symcon Docker service container.
+6. **Docker Image Scan**: Builds the image, smoke-tests that the server is reachable inside the container and scans it with [Trivy](https://trivy.dev/) (fails on fixable HIGH/CRITICAL findings).
+7. **Report**: Uploads coverage results to Codecov.
 
 **`Release` (`release.yml`)** – triggered by a semver tag or manual dispatch:
 1. **Bump version** (Manual only): Updates `package.json` and `openapi.yaml`, commits and pushes to `main`.
 2. **Lint & Test**: Runs lint, unit tests with coverage, and integration tests.
-3. **Build & Push**: Multi-arch Docker build and push to Docker Hub (`tommi2day/symcon-mcp-server`).
+3. **Build & Push**: Builds the image, scans it with Trivy (a failing scan stops the release before anything is pushed), then pushes it to Docker Hub (`tommi2day/symcon-mcp-server`).
 4. **Create Release**: Creates a GitHub tag (if manual) and a GitHub Release with auto-generated notes.
 
 ---

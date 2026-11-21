@@ -57,7 +57,7 @@ scripts/
   test-health.sh  Smoke-test a running server instance
 
 .github/workflows/
-  ci.yml          Lint → Unit tests → Integration tests → Docker build check
+  ci.yml          Audit → Lint → Unit tests → Integration tests → Docker image scan
   release.yml     Tag/manual dispatch → bump → lint → test → Docker push → GH Release
 ```
 
@@ -229,11 +229,12 @@ Integration tests (Docker required)
 
 ```
 ci.yml:
-  lint → unit tests (Node 20 + 22) → integration tests → docker build check
+  audit → lint → unit tests (Node 24) → integration tests
+  docker-scan: build image → smoke test (reachable on 127.0.0.1) → Trivy (HIGH/CRITICAL, fixable)
 
 release.yml:
   triggered by semver tag OR manual dispatch
-  → bump version → lint → test → build multi-arch image → push to Docker Hub + GHCR → GitHub Release
+  → (bump version, manual only) → lint → test → build image → Trivy scan → push to Docker Hub → GitHub Release
 ```
 
 **Required GitHub Secrets:**
@@ -259,7 +260,17 @@ git push origin main 1.2.3
 
 The `npm version` command calls the `scripts/bump-version.mjs` lifecycle hook
 via `"version"` in `package.json`. It syncs the version into `openapi.yaml`
-using a regex replace (no YAML library required).
+using a regex replace (no YAML library required) and stages only
+`package.json`, `package-lock.json` and `openapi.yaml` (never `git add -A`).
+
+Before releasing: move the `CHANGELOG.md` entry from *Unreleased* to the version
+and date. The Trivy action in `ci.yml`/`release.yml` is pinned to a commit SHA;
+update the SHA deliberately when bumping it.
+
+The Docker `HEALTHCHECK` uses `127.0.0.1`, not `localhost`: inside the container
+`localhost` resolves to `::1` while the server binds IPv4 `0.0.0.0`. `/health`
+returns 503 when Symcon is unreachable, so the container is only `healthy` with
+a working Symcon connection.
 
 ---
 
@@ -273,6 +284,4 @@ using a regex replace (no YAML library required).
 | `latest` | Latest build from main |
 | `sha-abc1234` | Specific commit |
 
-Images are published to:
-- `tommi2day/symcon-mcp-server` (Docker Hub)
-- `ghcr.io/tommi2day/symcon-mcp-server` (GitHub Container Registry)
+Images are published to Docker Hub as `tommi2day/symcon-mcp-server`.
