@@ -16,7 +16,7 @@
     "coverage:open": "vitest run --config vitest.config.ts --coverage && open coverage/index.html",
     "lint": "eslint src tests",
     "lint:fix": "eslint src tests --fix",
-    "version": "node scripts/bump-version.mjs && git add -A",
+    "version": "node scripts/bump-version.mjs && git add package.json package-lock.json openapi.yaml",
     "audit": "npm audit",
     "audit:fix": "npm audit fix"
   },
