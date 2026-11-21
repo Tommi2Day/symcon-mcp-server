@@ -16,10 +16,29 @@ export interface RpcResponse<T = unknown> {
 
 let requestId = 1;
 
+const REQUEST_TIMEOUT_MS = 30_000;
+const MAX_CONCURRENT = 8;
+
 export class SymconClient {
   private readonly url: string;
   private readonly authHeader: string | undefined;
   private readonly agent: https.Agent | undefined;
+  private active = 0;
+  private readonly waiters: Array<() => void> = [];
+
+  private async acquire(): Promise<void> {
+    if (this.active < MAX_CONCURRENT) {
+      this.active++;
+      return;
+    }
+    await new Promise<void>((resolve) => this.waiters.push(resolve));
+  }
+
+  private release(): void {
+    const next = this.waiters.shift();
+    if (next) next(); // hand the slot over directly
+    else this.active--;
+  }
 
   constructor(opts: SymconClientOptions) {
     this.url = opts.url.endsWith("/") ? opts.url : opts.url + "/";
@@ -38,6 +57,15 @@ export class SymconClient {
 
   /** Low-level JSON-RPC call */
   async rpc<T = unknown>(method: string, params: unknown[] = []): Promise<T> {
+    await this.acquire();
+    try {
+      return await this.rpcInner<T>(method, params);
+    } finally {
+      this.release();
+    }
+  }
+
+  private async rpcInner<T>(method: string, params: unknown[]): Promise<T> {
     const id = requestId++;
     const body = JSON.stringify({ jsonrpc: "2.0", method, params, id });
 
@@ -51,6 +79,7 @@ export class SymconClient {
       method: "POST",
       headers,
       body,
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     };
 
     if (this.agent) {
@@ -108,6 +137,9 @@ export class SymconClient {
           res.on("data", (chunk) => (data += chunk));
           res.on("end", () => resolve(data));
         }
+      );
+      req.setTimeout(REQUEST_TIMEOUT_MS, () =>
+        req.destroy(new Error("Symcon request timed out"))
       );
       req.on("error", reject);
       req.write(body);
